@@ -24,8 +24,14 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { BriefcaseDoodle, DocumentDoodle } from "@/components/doodles";
 import {
+  profileApi,
+  skillsApi,
+  preferencesApi,
+  savedJobsApi,
+  SavedJob,
+} from "@/lib/api";
+import {
   ArrowLeft,
-  Upload,
   X,
   Plus,
   Loader2,
@@ -34,6 +40,10 @@ import {
   Settings,
   Bookmark,
   Briefcase,
+  ExternalLink,
+  MapPin,
+  Building2,
+  Trash2,
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,6 +62,7 @@ const Profile = () => {
   // Skills state
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState("");
+  const [isAddingSkill, setIsAddingSkill] = useState(false);
   
   // Preferences state
   const [preferredLocations, setPreferredLocations] = useState<string[]>([]);
@@ -64,6 +75,10 @@ const Profile = () => {
   // Resume state
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Saved jobs state
+  const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
+  const [isLoadingSavedJobs, setIsLoadingSavedJobs] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -87,15 +102,90 @@ const Profile = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const addSkill = () => {
-    if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      setSkills([...skills, newSkill.trim()]);
-      setNewSkill("");
+  // Load user data from MongoDB
+  useEffect(() => {
+    if (user) {
+      loadUserData();
+    }
+  }, [user]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+
+    try {
+      // Load profile
+      const profileRes = await profileApi.get(user.id);
+      if (profileRes.success && profileRes.data) {
+        setDisplayName(profileRes.data.full_name || "");
+      }
+
+      // Load skills
+      const skillsRes = await skillsApi.get(user.id);
+      if (skillsRes.success && skillsRes.data) {
+        setSkills(skillsRes.data.map(s => s.skill));
+      }
+
+      // Load preferences
+      const prefsRes = await preferencesApi.get(user.id);
+      if (prefsRes.success && prefsRes.data) {
+        setPreferredLocations(prefsRes.data.preferred_locations || []);
+        setSalaryMin(prefsRes.data.salary_min?.toString() || "");
+        setSalaryMax(prefsRes.data.salary_max?.toString() || "");
+        setRemotePreference(prefsRes.data.remote_preference === 'remote' || prefsRes.data.remote_preference === 'any');
+        if (prefsRes.data.job_types?.length > 0) {
+          setJobType(prefsRes.data.job_types[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
     }
   };
 
-  const removeSkill = (skill: string) => {
-    setSkills(skills.filter((s) => s !== skill));
+  const loadSavedJobs = async () => {
+    if (!user) return;
+    
+    setIsLoadingSavedJobs(true);
+    try {
+      const response = await savedJobsApi.get(user.id);
+      if (response.success && response.data) {
+        setSavedJobs(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading saved jobs:', error);
+    } finally {
+      setIsLoadingSavedJobs(false);
+    }
+  };
+
+  const addSkill = async () => {
+    if (!newSkill.trim() || !user || skills.includes(newSkill.trim())) return;
+    
+    setIsAddingSkill(true);
+    try {
+      const response = await skillsApi.add(user.id, newSkill.trim());
+      if (response.success) {
+        setSkills([...skills, newSkill.trim()]);
+        setNewSkill("");
+        toast({ title: "Skill added" });
+      }
+    } catch (error) {
+      console.error('Error adding skill:', error);
+      toast({ title: "Error adding skill", variant: "destructive" });
+    } finally {
+      setIsAddingSkill(false);
+    }
+  };
+
+  const removeSkill = async (skill: string) => {
+    if (!user) return;
+    
+    try {
+      await skillsApi.remove(user.id, skill);
+      setSkills(skills.filter((s) => s !== skill));
+      toast({ title: "Skill removed" });
+    } catch (error) {
+      console.error('Error removing skill:', error);
+    }
   };
 
   const addLocation = () => {
@@ -109,22 +199,34 @@ const Profile = () => {
     setPreferredLocations(preferredLocations.filter((l) => l !== location));
   };
 
+  const removeSavedJob = async (jobId: string) => {
+    if (!user) return;
+    
+    try {
+      await savedJobsApi.unsave(user.id, jobId);
+      setSavedJobs(savedJobs.filter(j => j.id !== jobId));
+      toast({ title: "Job removed from saved" });
+    } catch (error) {
+      console.error('Error removing saved job:', error);
+    }
+  };
+
   const handleResumeUpload = useCallback(async (file: File) => {
     if (!user) return;
     
     setIsUploading(true);
     try {
-      // Here we would upload to Supabase Storage and parse with AI
-      // For now, just show a success message
+      // Here we would upload to storage and parse with AI
       toast({
         title: "Resume uploaded",
         description: "Your resume has been uploaded and is being processed.",
       });
       setResumeFile(file);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload resume";
       toast({
         title: "Upload failed",
-        description: error.message || "Failed to upload resume",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -133,18 +235,37 @@ const Profile = () => {
   }, [user, toast]);
 
   const handleSaveProfile = async () => {
+    if (!user) return;
+    
     setIsSaving(true);
     try {
-      // Here we would save to Supabase
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Save profile
+      await profileApi.upsert({
+        user_id: user.id,
+        email: user.email || "",
+        full_name: displayName,
+      });
+
+      // Save preferences
+      await preferencesApi.update({
+        user_id: user.id,
+        preferred_locations: preferredLocations,
+        salary_min: salaryMin ? parseInt(salaryMin) : undefined,
+        salary_max: salaryMax ? parseInt(salaryMax) : undefined,
+        job_types: [jobType],
+        remote_preference: remotePreference ? 'remote' : 'onsite',
+        industries: [],
+      });
+
       toast({
         title: "Profile saved",
         description: "Your profile has been updated successfully.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to save profile";
       toast({
         title: "Save failed",
-        description: error.message || "Failed to save profile",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -188,7 +309,11 @@ const Profile = () => {
         <div className="mx-auto max-w-3xl">
           <h1 className="mb-6 text-3xl font-bold text-foreground">Your Profile</h1>
 
-          <Tabs defaultValue="profile" className="space-y-6">
+          <Tabs defaultValue="profile" className="space-y-6" onValueChange={(tab) => {
+            if (tab === 'saved') {
+              loadSavedJobs();
+            }
+          }}>
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="profile" className="gap-2">
                 <User className="h-4 w-4" />
@@ -258,9 +383,10 @@ const Profile = () => {
                         onChange={(e) => setNewSkill(e.target.value)}
                         placeholder="Add a skill..."
                         onKeyPress={(e) => e.key === "Enter" && addSkill()}
+                        disabled={isAddingSkill}
                       />
-                      <Button type="button" onClick={addSkill}>
-                        <Plus className="h-4 w-4" />
+                      <Button type="button" onClick={addSkill} disabled={isAddingSkill}>
+                        {isAddingSkill ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-2">
@@ -479,16 +605,68 @@ const Profile = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="py-12 text-center">
-                    <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                    <p className="text-muted-foreground">
-                      No saved jobs yet. Start exploring and bookmark jobs you're
-                      interested in!
-                    </p>
-                    <Button asChild className="mt-4">
-                      <Link to="/dashboard">Browse Jobs</Link>
-                    </Button>
-                  </div>
+                  {isLoadingSavedJobs ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : savedJobs.length === 0 ? (
+                    <div className="py-12 text-center">
+                      <Bookmark className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                      <p className="text-muted-foreground">
+                        No saved jobs yet. Start exploring and bookmark jobs you're
+                        interested in!
+                      </p>
+                      <Button asChild className="mt-4">
+                        <Link to="/dashboard">Browse Jobs</Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {savedJobs.map((job) => (
+                        <div
+                          key={job.id}
+                          className="flex items-start justify-between rounded-lg border p-4"
+                        >
+                          <div className="flex-1">
+                            <h4 className="font-medium">{job.title}</h4>
+                            <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Building2 className="h-3 w-3" />
+                                {job.company}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {job.location}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild
+                            >
+                              <a
+                                href={job.applyUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Apply
+                                <ExternalLink className="ml-1 h-3 w-3" />
+                              </a>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeSavedJob(job.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

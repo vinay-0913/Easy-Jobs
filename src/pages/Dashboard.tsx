@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { BriefcaseDoodle } from "@/components/doodles";
+import { jobsApi, savedJobsApi, Job } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import {
   Search,
   MapPin,
@@ -32,11 +34,12 @@ import {
   Loader2,
   Briefcase,
   Clock,
+  RefreshCw,
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 
-// Mock job data for initial display
-const mockJobs = [
+// Fallback mock jobs for when API is unavailable
+const fallbackJobs: Job[] = [
   {
     id: "1",
     title: "Senior Frontend Developer",
@@ -79,45 +82,22 @@ const mockJobs = [
     jobType: "Full-time",
     applyUrl: "https://example.com/apply",
   },
-  {
-    id: "4",
-    title: "Software Engineer II",
-    company: "Enterprise Solutions",
-    location: "Seattle, WA",
-    remote: true,
-    salary: "$140,000 - $170,000",
-    description:
-      "Work on enterprise-scale applications serving millions of users worldwide.",
-    matchScore: 78,
-    postedDate: "3 days ago",
-    jobType: "Full-time",
-    applyUrl: "https://example.com/apply",
-  },
-  {
-    id: "5",
-    title: "Frontend Engineer",
-    company: "FinTech Innovations",
-    location: "Chicago, IL",
-    remote: true,
-    salary: "$120,000 - $150,000",
-    description:
-      "Help us revolutionize the financial industry with modern web technologies.",
-    matchScore: 75,
-    postedDate: "4 days ago",
-    jobType: "Full-time",
-    applyUrl: "https://example.com/apply",
-  },
 ];
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("software developer");
   const [jobType, setJobType] = useState("all");
   const [remoteFilter, setRemoteFilter] = useState("all");
-  const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const [jobs, setJobs] = useState<Job[]>(fallbackJobs);
+  const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
 
+  // Authentication check
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -140,31 +120,125 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Load saved jobs for the user
+  useEffect(() => {
+    if (user) {
+      loadSavedJobs();
+    }
+  }, [user]);
+
+  const loadSavedJobs = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await savedJobsApi.get(user.id);
+      if (response.success && response.data) {
+        const savedIds = new Set(response.data.map(job => job.id));
+        setSavedJobs(savedIds);
+      }
+    } catch (error) {
+      console.error('Error loading saved jobs:', error);
+    }
+  };
+
+  // Search for jobs using Firecrawl
+  const searchJobs = useCallback(async (query: string) => {
+    if (!query.trim()) return;
+    
+    setIsSearching(true);
+    try {
+      const response = await jobsApi.search({
+        query,
+        remote: remoteFilter === 'remote' ? true : remoteFilter === 'onsite' ? false : undefined,
+        jobType: jobType !== 'all' ? jobType : undefined,
+        limit: 20,
+      });
+
+      if (response.success && response.data && response.data.length > 0) {
+        setJobs(response.data);
+        toast({
+          title: "Jobs found!",
+          description: `Found ${response.data.length} job listings matching your search.`,
+        });
+      } else {
+        // Keep fallback jobs if search fails
+        toast({
+          title: "Using sample jobs",
+          description: response.error || "Showing example listings. Try a different search.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error('Job search error:', error);
+      toast({
+        title: "Search unavailable",
+        description: "Showing example job listings. Real job search is being configured.",
+        variant: "default",
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  }, [remoteFilter, jobType, toast]);
+
+  // Initial job search
+  useEffect(() => {
+    if (user && submittedQuery) {
+      searchJobs(submittedQuery);
+    }
+  }, [user, submittedQuery, searchJobs]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
   };
 
-  const toggleSaveJob = (jobId: string) => {
-    setSavedJobs((prev) =>
-      prev.includes(jobId)
-        ? prev.filter((id) => id !== jobId)
-        : [...prev, jobId]
-    );
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setSubmittedQuery(searchQuery);
+    }
   };
 
-  const filteredJobs = mockJobs.filter((job) => {
-    const matchesSearch =
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.location.toLowerCase().includes(searchQuery.toLowerCase());
+  const toggleSaveJob = async (job: Job) => {
+    if (!user) return;
 
+    const isSaved = savedJobs.has(job.id);
+    
+    try {
+      if (isSaved) {
+        await savedJobsApi.unsave(user.id, job.id);
+        setSavedJobs(prev => {
+          const next = new Set(prev);
+          next.delete(job.id);
+          return next;
+        });
+        toast({ title: "Job removed from saved" });
+      } else {
+        await savedJobsApi.save(user.id, job);
+        setSavedJobs(prev => new Set(prev).add(job.id));
+        toast({ title: "Job saved!" });
+      }
+    } catch (error) {
+      console.error('Error toggling saved job:', error);
+      toast({
+        title: "Error",
+        description: "Could not save/unsave job. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Filter jobs locally based on current filters
+  const filteredJobs = jobs.filter((job) => {
     const matchesRemote =
       remoteFilter === "all" ||
       (remoteFilter === "remote" && job.remote) ||
       (remoteFilter === "onsite" && !job.remote);
 
-    return matchesSearch && matchesRemote;
+    const matchesType =
+      jobType === "all" || job.jobType.toLowerCase().includes(jobType);
+
+    return matchesRemote && matchesType;
   });
 
   const getMatchScoreColor = (score: number) => {
@@ -211,11 +285,11 @@ const Dashboard = () => {
       <main className="container py-8">
         {/* Search and Filters */}
         <div className="mb-8 space-y-4">
-          <div className="flex flex-col gap-4 md:flex-row">
+          <form onSubmit={handleSearch} className="flex flex-col gap-4 md:flex-row">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search jobs, companies, or locations..."
+                placeholder="Search jobs, skills, or keywords..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -247,11 +321,27 @@ const Dashboard = () => {
                   <SelectItem value="contract">Contract</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Button type="submit" disabled={isSearching}>
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                <span className="ml-2 hidden sm:inline">Search</span>
+              </Button>
             </div>
-          </div>
+          </form>
 
           <p className="text-sm text-muted-foreground">
-            Showing {filteredJobs.length} jobs matched to your profile
+            {isSearching ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Searching for jobs...
+              </span>
+            ) : (
+              `Showing ${filteredJobs.length} jobs ${submittedQuery ? `for "${submittedQuery}"` : ''}`
+            )}
           </p>
         </div>
 
@@ -291,16 +381,16 @@ const Dashboard = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => toggleSaveJob(job.id)}
+                    onClick={() => toggleSaveJob(job)}
                     className={
-                      savedJobs.includes(job.id)
+                      savedJobs.has(job.id)
                         ? "text-primary"
                         : "text-muted-foreground"
                     }
                   >
                     <Bookmark
                       className="h-5 w-5"
-                      fill={savedJobs.includes(job.id) ? "currentColor" : "none"}
+                      fill={savedJobs.has(job.id) ? "currentColor" : "none"}
                     />
                   </Button>
                 </div>
@@ -341,10 +431,10 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {filteredJobs.length === 0 && (
+        {filteredJobs.length === 0 && !isSearching && (
           <div className="py-12 text-center">
             <p className="text-lg text-muted-foreground">
-              No jobs found matching your search criteria.
+              No jobs found matching your criteria. Try adjusting your filters.
             </p>
           </div>
         )}

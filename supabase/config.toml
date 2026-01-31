@@ -1,1 +1,16 @@
 project_id = "fdpwslrsqpuchnsvadpt"
+
+[functions.mongodb-profiles]
+verify_jwt = false
+
+[functions.mongodb-skills]
+verify_jwt = false
+
+[functions.mongodb-preferences]
+verify_jwt = false
+
+[functions.mongodb-saved-jobs]
+verify_jwt = false
+
+[functions.firecrawl-job-search]
+verify_jwt = false

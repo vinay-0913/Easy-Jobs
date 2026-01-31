@@ -92,4 +92,3 @@ A full-featured job search platform that uses AI to match users with relevant jo
 - **AI**: Lovable AI for resume parsing and job matching
 - **Web Scraping**: Firecrawl for real job listings
 - **Storage**: Supabase Storage for resumes
-

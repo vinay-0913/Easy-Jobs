@@ -9,7 +9,7 @@ const Header = () => {
         <Link to="/" className="flex items-center gap-2">
           <BriefcaseDoodle className="h-8 w-8 text-primary" />
           <span className="text-xl font-bold text-foreground">
-            Simplify<span className="text-primary">.jobs</span>
+            Easy <span className="text-primary">Jobs</span>
           </span>
         </Link>
 
@@ -39,7 +39,7 @@ const Header = () => {
             <Link to="/auth">Log In</Link>
           </Button>
           <Button asChild>
-            <Link to="/auth?mode=signup">Get Started</Link>
+            <Link to="/auth?mode=signup">Register</Link>
           </Button>
         </div>
       </div>

@@ -19,8 +19,10 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        "background-light": "#f6f7f8",
+        "background-dark": "#101922",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: "#137fec",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -110,5 +112,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/forms")],
 } satisfies Config;

@@ -1,29 +1,30 @@
-import { DocumentDoodle, TargetDoodle, CheckmarkDoodle } from "@/components/doodles";
+import { TrackingDoodle, TargetDoodle, CheckmarkDoodle } from "@/components/doodles";
+import { motion } from "framer-motion";
 
 const steps = [
   {
     number: "01",
-    title: "Upload Your Resume",
-    description:
-      "Simply upload your resume and our AI will extract your skills, experience, and qualifications automatically.",
-    icon: DocumentDoodle,
-    color: "text-primary",
-  },
-  {
-    number: "02",
     title: "Set Your Preferences",
     description:
       "Tell us what you're looking for - preferred locations, salary range, job type, remote work, and industries.",
     icon: TargetDoodle,
-    color: "text-accent",
+    color: "text-primary",
   },
   {
-    number: "03",
+    number: "02",
     title: "Get Matched Jobs",
     description:
       "Our AI searches the web and delivers personalized job matches ranked by how well they fit your profile.",
     icon: CheckmarkDoodle,
-    color: "text-success",
+    color: "text-accent",
+  },
+  {
+    number: "03",
+    title: "Track Your Jobs",
+    description:
+      "Save jobs you love, apply with one click, and track all your applications in one convenient dashboard.",
+    icon: TrackingDoodle,
+    color: "text-blue-500",
   },
 ];
 
@@ -31,31 +32,53 @@ const HowItWorksSection = () => {
   return (
     <section id="how-it-works" className="bg-secondary/30 py-20 md:py-28">
       <div className="container">
-        <div className="mx-auto mb-16 max-w-2xl text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.5 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto mb-16 max-w-2xl text-center"
+        >
           <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
             How It Works
           </h2>
           <p className="text-lg text-muted-foreground">
             Three simple steps to your next career opportunity
           </p>
-        </div>
+        </motion.div>
 
         <div className="grid gap-8 md:grid-cols-3">
           {steps.map((step, index) => (
-            <div
+            <motion.div
               key={step.number}
-              className="group relative rounded-2xl bg-card p-8 shadow-sm transition-all hover:shadow-md"
-              style={{ animationDelay: `${index * 100}ms` }}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.5, delay: index * 0.2, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -5 }}
+              className="group relative rounded-2xl bg-card p-8 shadow-sm transition-shadow hover:shadow-md"
             >
               {/* Step number */}
-              <span className="absolute -top-4 left-6 rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">
+              <motion.span
+                initial={{ scale: 0 }}
+                whileInView={{ scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.3 + index * 0.2 }}
+                className="absolute -top-4 left-6 rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground"
+              >
                 {step.number}
-              </span>
+              </motion.span>
 
               {/* Icon */}
-              <div className={`mb-6 ${step.color}`}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.4 + index * 0.2 }}
+                className={`mb-6 ${step.color}`}
+              >
                 <step.icon className="h-16 w-16" />
-              </div>
+              </motion.div>
 
               {/* Content */}
               <h3 className="mb-3 text-xl font-semibold text-foreground">
@@ -65,11 +88,17 @@ const HowItWorksSection = () => {
 
               {/* Connector line (hidden on last item and mobile) */}
               {index < steps.length - 1 && (
-                <div className="absolute -right-4 top-1/2 hidden h-0.5 w-8 -translate-y-1/2 bg-border md:block">
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.6 + index * 0.2 }}
+                  className="absolute -right-4 top-1/2 hidden h-0.5 w-8 -translate-y-1/2 origin-left bg-border md:block"
+                >
                   <div className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 rotate-45 border-r-2 border-t-2 border-border" />
-                </div>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>

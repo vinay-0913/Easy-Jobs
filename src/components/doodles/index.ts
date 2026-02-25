@@ -5,3 +5,4 @@ export { default as DocumentDoodle } from './DocumentDoodle';
 export { default as PersonWorkingDoodle } from './PersonWorkingDoodle';
 export { default as RocketDoodle } from './RocketDoodle';
 export { default as TargetDoodle } from './TargetDoodle';
+export { default as TrackingDoodle } from './TrackingDoodle';

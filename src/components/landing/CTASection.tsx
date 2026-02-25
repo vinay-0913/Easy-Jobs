@@ -2,12 +2,19 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { RocketDoodle } from "@/components/doodles";
+import { motion } from "framer-motion";
 
 const CTASection = () => {
   return (
     <section className="py-20 md:py-28">
       <div className="container">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 p-8 md:p-16">
+        <motion.div
+          initial={{ opacity: 0, y: 40, scale: 0.97 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 p-8 md:p-16"
+        >
           {/* Background pattern */}
           <div className="absolute inset-0 opacity-10">
             <svg className="h-full w-full" viewBox="0 0 100 100">
@@ -26,29 +33,58 @@ const CTASection = () => {
           </div>
 
           {/* Doodle */}
-          <RocketDoodle className="absolute -right-8 -top-8 h-48 w-48 rotate-12 text-white/20 md:right-8 md:top-1/2 md:-translate-y-1/2" />
+          <motion.div
+            initial={{ opacity: 0, rotate: 0 }}
+            whileInView={{ opacity: 1, rotate: 12 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
+            <RocketDoodle className="absolute -right-8 -top-8 h-48 w-48 text-white/20 md:right-8 md:top-1/2 md:-translate-y-1/2" />
+          </motion.div>
 
           <div className="relative mx-auto max-w-2xl text-center">
-            <h2 className="mb-4 text-3xl font-bold text-primary-foreground md:text-4xl">
-              Ready to Simplify Your Job Search?
-            </h2>
-            <p className="mb-8 text-lg text-primary-foreground/80">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mb-4 text-3xl font-bold text-primary-foreground md:text-4xl"
+            >
+              Ready to Find Your Dream Job?
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.35 }}
+              className="mb-8 text-lg text-primary-foreground/80"
+            >
               Join thousands of professionals who've found their dream jobs with
               our AI-powered platform. Get started for free today.
-            </p>
-            <Button
-              size="lg"
-              variant="secondary"
-              className="gap-2 px-8"
-              asChild
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              className="inline-block"
             >
-              <Link to="/auth?mode=signup">
-                Get Started Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+              <Button
+                size="lg"
+                variant="secondary"
+                className="gap-2 px-8"
+                asChild
+              >
+                <Link to="/auth?mode=signup">
+                  Get Started Free
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

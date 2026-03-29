@@ -1,73 +1,141 @@
-# Welcome to your Lovable project
+# Easy Jobs 🚀
 
-## Project info
+**AI-powered job matching that simplifies your job search.**  
+Upload your profile, set preferences, and let us find the best-matched jobs from across the web.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+🌐 **Live Demo:** [easy-jobs-five.vercel.app](https://easy-jobs-five.vercel.app)
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- 🔍 **Real Job Listings** — Searches the web via JSearch API for verified, up-to-date postings
+- 🎯 **Match Scoring** — Weighted AI score based on your skills, location, salary, experience & job type
+- 🔖 **Save & Track** — Bookmark jobs and track your application status in one dashboard
+- 📋 **My Applications** — View applied jobs with status tracking (Applied, Interview, Offer, Rejected)
+- 👤 **Profile Management** — Skills, education, experience, preferences, and bio
+- 🔐 **Authentication** — Secure sign up/login via Clerk
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## Tech Stack
 
-**Use your preferred IDE**
+### Frontend
+| Tech | Purpose |
+|------|---------|
+| React + Vite | UI framework |
+| TypeScript | Type safety |
+| Tailwind CSS | Styling |
+| framer-motion | Animations |
+| Clerk | Authentication |
+| TanStack Query | Data fetching |
+| React Router | Navigation |
+| shadcn/ui | UI components |
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Backend
+| Tech | Purpose |
+|------|---------|
+| Node.js + Express | API server |
+| MongoDB Atlas | Database |
+| Mongoose | ODM |
+| Clerk (Express) | Auth middleware |
+| JSearch API | Job data (via RapidAPI) |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## Getting Started
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Prerequisites
+- Node.js 18+
+- MongoDB Atlas account
+- Clerk account
+- RapidAPI account (JSearch API)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Frontend Setup
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+cd easyjobs
+npm install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Create `.env`:
+```env
+VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+VITE_API_URL=http://localhost:5000/api
+```
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Backend Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+cd easyjobs/backend
+npm install
+```
 
-**Use GitHub Codespaces**
+Create `backend/.env`:
+```env
+MONGODB_URI=your_mongodb_connection_string
+CLERK_SECRET_KEY=your_clerk_secret_key
+JSEARCH_API_KEY=your_jsearch_rapidapi_key
+PORT=5000
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```bash
+npm run dev
+```
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Both frontend and backend are deployed separately on **Vercel**.
 
-## How can I deploy this project?
+### Backend (deploy first)
+- Root directory: `easyjobs/backend`
+- Entry point: `server.js`
+- Set env vars: `MONGODB_URI`, `CLERK_SECRET_KEY`, `JSEARCH_API_KEY`, `FRONTEND_URL`
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Frontend
+- Root directory: `easyjobs`
+- Framework: Vite (auto-detected)
+- Set env vars: `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_API_URL` (backend URL + `/api`)
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## Project Structure
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```
+easyjobs/
+├── src/
+│   ├── components/
+│   │   └── landing/        # Landing page sections
+│   ├── pages/              # Dashboard, Profile, Auth, etc.
+│   └── lib/api/            # API client
+├── backend/
+│   ├── routes/             # jobs.js, profile.js
+│   ├── models/             # Profile.js (Mongoose)
+│   └── server.js           # Express server
+└── public/                 # Static assets
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+## Environment Variables
+
+| Variable | Where | Description |
+|----------|-------|-------------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | Frontend | Clerk public key |
+| `VITE_API_URL` | Frontend | Backend API base URL |
+| `CLERK_SECRET_KEY` | Backend | Clerk secret key |
+| `MONGODB_URI` | Backend | MongoDB connection string |
+| `JSEARCH_API_KEY` | Backend | RapidAPI JSearch key |
+| `FRONTEND_URL` | Backend | Frontend URL (for CORS) |
+
+---
+
+## License
+
+MIT

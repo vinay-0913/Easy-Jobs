@@ -21,6 +21,12 @@ const fetchWithAuth = async (endpoint: string, options: RequestInit = {}, token?
 };
 
 // Types
+export interface JobHighlights {
+  Qualifications?: string[];
+  Responsibilities?: string[];
+  Benefits?: string[];
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -32,9 +38,13 @@ export interface Job {
   matchScore: number;
   postedDate: string;
   jobType: string;
+  experienceLevel?: string;
   applyUrl: string;
   skills?: string[];
+  requiredSkills?: string[];
+  highlights?: JobHighlights;
   companyLogo?: string;
+  fullDescription?: string;
 }
 
 export interface UserProfile {

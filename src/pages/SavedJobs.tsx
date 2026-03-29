@@ -141,7 +141,7 @@ const SavedJobs = () => {
                             <h1 className="text-[#111418] dark:text-white text-sm font-bold leading-normal truncate">
                                 {user?.firstName} {user?.lastName}
                             </h1>
-                            <p className="text-[#617589] dark:text-[#94a3b8] text-xs font-normal leading-normal truncate">
+                            <p className="text-[#4b5563] dark:text-[#8492a6] text-xs font-normal leading-normal truncate">
                                 Senior Frontend Dev
                             </p>
                         </div>
@@ -151,14 +151,14 @@ const SavedJobs = () => {
                 <div className="flex flex-col gap-1 px-4">
                     <Link
                         to="/dashboard"
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#617589] dark:text-[#94a3b8]"
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6]"
                     >
                         <span className="material-symbols-outlined text-[20px]">dashboard</span>
                         <p className="text-sm font-medium">Dashboard</p>
                     </Link>
                     <Link
                         to="/my-applications"
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#617589] dark:text-[#94a3b8]"
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6]"
                     >
                         <span className="material-symbols-outlined text-[20px]">work</span>
                         <p className="text-sm font-medium">My Applications</p>
@@ -177,7 +177,7 @@ const SavedJobs = () => {
                 <div className="mt-auto p-4">
                     <button
                         onClick={() => signOut()}
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 text-[#617589] dark:text-[#94a3b8] hover:text-red-600 w-full"
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 text-[#4b5563] dark:text-[#8492a6] hover:text-red-600 w-full"
                     >
                         <span className="material-symbols-outlined text-[20px]">logout</span>
                         <p className="text-sm font-medium">Sign Out</p>
@@ -195,7 +195,7 @@ const SavedJobs = () => {
                                 <h1 className="text-2xl font-bold text-[#111418] dark:text-white">
                                     Saved Jobs
                                 </h1>
-                                <p className="text-sm text-[#617589] dark:text-[#94a3b8] mt-1">
+                                <p className="text-sm text-[#4b5563] dark:text-[#8492a6] mt-1">
                                     Manage the positions you're interested in.
                                 </p>
                             </div>
@@ -220,7 +220,7 @@ const SavedJobs = () => {
                                     </div>
                                     <div className="text-center">
                                         <h2 className="text-lg font-bold text-[#111418] dark:text-white mb-1">No saved jobs yet</h2>
-                                        <p className="text-sm text-[#617589] dark:text-[#94a3b8]">
+                                        <p className="text-sm text-[#4b5563] dark:text-[#8492a6]">
                                             Save interesting jobs from the Dashboard to review them later.
                                         </p>
                                     </div>
@@ -293,7 +293,7 @@ const SavedJobs = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <p className="text-xs text-[#617589] dark:text-[#94a3b8] mt-0.5 flex items-center gap-1">
+                                                <p className="text-xs text-[#4b5563] dark:text-[#8492a6] mt-0.5 flex items-center gap-1">
                                                     {job.company}
                                                     <span className="text-[#d1d5db] dark:text-[#4b5563]">·</span>
                                                     <span className="material-symbols-outlined text-[14px]">location_on</span>
@@ -334,7 +334,7 @@ const SavedJobs = () => {
                                 <button
                                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
-                                    className="flex items-center justify-center w-9 h-9 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#617589] dark:text-[#94a3b8] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    className="flex items-center justify-center w-9 h-9 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#4b5563] dark:text-[#8492a6] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                     <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                                 </button>
@@ -342,7 +342,7 @@ const SavedJobs = () => {
                                     typeof page === "string" ? (
                                         <span
                                             key={`ellipsis-${idx}`}
-                                            className="px-2 text-[#617589] dark:text-[#94a3b8] text-sm select-none"
+                                            className="px-2 text-[#4b5563] dark:text-[#8492a6] text-sm select-none"
                                         >
                                             …
                                         </span>
@@ -352,7 +352,7 @@ const SavedJobs = () => {
                                             onClick={() => setCurrentPage(page)}
                                             className={`min-w-[36px] h-9 px-2 text-sm font-medium rounded-lg transition-colors ${currentPage === page
                                                 ? "bg-primary text-white shadow-sm shadow-blue-500/30"
-                                                : "border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#617589] dark:text-[#94a3b8] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"
+                                                : "border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#4b5563] dark:text-[#8492a6] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"
                                                 }`}
                                         >
                                             {page}
@@ -362,7 +362,7 @@ const SavedJobs = () => {
                                 <button
                                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                     disabled={currentPage >= totalPages}
-                                    className="flex items-center justify-center w-9 h-9 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#617589] dark:text-[#94a3b8] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    className="flex items-center justify-center w-9 h-9 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#4b5563] dark:text-[#8492a6] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                     <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                                 </button>
@@ -372,7 +372,7 @@ const SavedJobs = () => {
                 </div>
 
                 {/* Footer */}
-                <footer className="border-t border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] px-8 py-4 flex items-center justify-between text-xs text-[#617589] dark:text-[#94a3b8]">
+                <footer className="border-t border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] px-8 py-4 flex items-center justify-between text-xs text-[#4b5563] dark:text-[#8492a6]">
                     <p>© 2025 Easy Jobs. All rights reserved.</p>
                     <div className="flex items-center gap-6">
                         <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>

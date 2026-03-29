@@ -145,6 +145,10 @@
   animation: wiggle 2s ease-in-out infinite;
 }
 
+.match-pill {
+  border-radius: 9999px;
+}
+
 /* Doodle styling */
 .doodle {
   stroke-linecap: round;

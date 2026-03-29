@@ -178,10 +178,45 @@ function mapJSearchJob(job, index, userProfile = null) {
         salary = `${currency}${formatSalaryNumber(job.job_min_salary)}+`;
     }
 
-    // Extract skills from job_required_skills or job_highlights
-    let skills = [];
+    // Extract experience level from job_required_experience
+    let experienceLevel = null;
+    const expInfo = job.job_required_experience;
+    if (expInfo) {
+        if (expInfo.no_experience_required) {
+            experienceLevel = 'Fresher';
+        } else if (expInfo.required_experience_in_months) {
+            const years = Math.round(expInfo.required_experience_in_months / 12);
+            if (years <= 1) experienceLevel = '0-1 Years';
+            else if (years <= 3) experienceLevel = '1-3 Years';
+            else if (years <= 5) experienceLevel = '3-5 Years';
+            else if (years <= 10) experienceLevel = '5-10 Years';
+            else experienceLevel = '10+ Years';
+        }
+    }
+    // Fallback: try to infer from title
+    if (!experienceLevel) {
+        const titleLower = (job.job_title || '').toLowerCase();
+        if (titleLower.includes('intern') || titleLower.includes('fresher') || titleLower.includes('trainee')) {
+            experienceLevel = 'Fresher';
+        } else if (titleLower.includes('junior') || titleLower.includes('jr.') || titleLower.includes('associate')) {
+            experienceLevel = '0-1 Years';
+        } else if (titleLower.includes('senior') || titleLower.includes('sr.') || titleLower.includes('lead')) {
+            experienceLevel = '5-10 Years';
+        } else if (titleLower.includes('staff') || titleLower.includes('principal') || titleLower.includes('architect')) {
+            experienceLevel = '10+ Years';
+        }
+    }
+
+    // Extract ALL required skills from JSearch
+    let requiredSkills = [];
     if (job.job_required_skills && Array.isArray(job.job_required_skills) && job.job_required_skills.length > 0) {
-        skills = job.job_required_skills.slice(0, 5);
+        requiredSkills = job.job_required_skills;
+    }
+
+    // Extract skills for matching (top 5 for cards)
+    let skills = [];
+    if (requiredSkills.length > 0) {
+        skills = requiredSkills.slice(0, 5);
     } else {
         // Try to extract from highlights qualifications
         const qualifications = job.job_highlights?.Qualifications || [];
@@ -191,6 +226,20 @@ function mapJSearchJob(job, index, userProfile = null) {
     // If still no skills, extract from title + description
     if (skills.length === 0) {
         skills = extractSkills((job.job_title || '') + ' ' + (job.job_description || '').substring(0, 500));
+    }
+
+    // Extract job highlights
+    const highlights = {};
+    if (job.job_highlights) {
+        if (job.job_highlights.Qualifications && job.job_highlights.Qualifications.length > 0) {
+            highlights.Qualifications = job.job_highlights.Qualifications.map(q => stripHtml(q));
+        }
+        if (job.job_highlights.Responsibilities && job.job_highlights.Responsibilities.length > 0) {
+            highlights.Responsibilities = job.job_highlights.Responsibilities.map(r => stripHtml(r));
+        }
+        if (job.job_highlights.Benefits && job.job_highlights.Benefits.length > 0) {
+            highlights.Benefits = job.job_highlights.Benefits.map(b => stripHtml(b));
+        }
     }
 
     // Format location
@@ -228,6 +277,35 @@ function mapJSearchJob(job, index, userProfile = null) {
         job.employer_name || ''
     );
 
+    // Full description for the detail panel — structured markdown
+    // Try raw description first, then fall back to job_highlights
+    let fullDescription = '';
+    if (job.job_description && job.job_description.trim().length > 30) {
+        fullDescription = formatFullDescription(job.job_description, job.job_title || '', job.employer_name || '');
+    }
+
+    // If description is still short, try to build from job_highlights
+    if (fullDescription.length < 50 && job.job_highlights) {
+        const sections = [];
+        if (job.job_highlights.Qualifications && job.job_highlights.Qualifications.length > 0) {
+            sections.push('## Qualifications\n\n' + job.job_highlights.Qualifications.map(q => `- ${stripHtml(q)}`).join('\n'));
+        }
+        if (job.job_highlights.Responsibilities && job.job_highlights.Responsibilities.length > 0) {
+            sections.push('## Responsibilities\n\n' + job.job_highlights.Responsibilities.map(r => `- ${stripHtml(r)}`).join('\n'));
+        }
+        if (job.job_highlights.Benefits && job.job_highlights.Benefits.length > 0) {
+            sections.push('## Benefits\n\n' + job.job_highlights.Benefits.map(b => `- ${stripHtml(b)}`).join('\n'));
+        }
+        if (sections.length > 0) {
+            fullDescription = sections.join('\n\n');
+        }
+    }
+
+    // Final fallback
+    if (!fullDescription || fullDescription.length < 20) {
+        fullDescription = '';
+    }
+
     return {
         id: job.job_id || `jsearch_${Date.now()}_${index}`,
         title: stripHtml(job.job_title || 'Job Position'),
@@ -236,11 +314,15 @@ function mapJSearchJob(job, index, userProfile = null) {
         remote: job.job_is_remote || false,
         salary: salary,
         description: description,
+        fullDescription: fullDescription,
         matchScore: calculateMatchScore(job, skills, jobType, location, userProfile),
         postedDate: postedDate,
         jobType: jobType,
+        experienceLevel: experienceLevel,
         applyUrl: job.job_apply_link || '#',
         skills: skills,
+        requiredSkills: requiredSkills,
+        highlights: Object.keys(highlights).length > 0 ? highlights : null,
         companyLogo: job.employer_logo || null,
         source: job.job_publisher || 'JSearch'
     };
@@ -475,7 +557,93 @@ function cleanJobDescription(description, title, company) {
     return bestSentence;
 }
 
-// Extract skills from text
+// Format full description into structured markdown for the detail panel
+function formatFullDescription(rawDescription, title, company) {
+    if (!rawDescription) {
+        return `${stripHtml(title)} position at ${stripHtml(company)}`;
+    }
+
+    let text = rawDescription;
+
+    // 1. Convert HTML block elements to newlines BEFORE stripping tags
+    text = text.replace(/<br\s*\/?>/gi, '\n');
+    text = text.replace(/<\/p>/gi, '\n\n');
+    text = text.replace(/<\/div>/gi, '\n');
+    text = text.replace(/<\/li>/gi, '\n');
+    text = text.replace(/<li[^>]*>/gi, '- ');
+    text = text.replace(/<\/h[1-6]>/gi, '\n\n');
+    text = text.replace(/<h([1-6])[^>]*>/gi, '\n\n## ');
+    text = text.replace(/<\/?ul[^>]*>/gi, '\n');
+    text = text.replace(/<\/?ol[^>]*>/gi, '\n');
+    text = text.replace(/<\/?tr[^>]*>/gi, '\n');
+    text = text.replace(/<\/?table[^>]*>/gi, '\n');
+    text = text.replace(/<td[^>]*>/gi, ' ');
+    text = text.replace(/<\/?strong>/gi, '**');
+    text = text.replace(/<\/?b>/gi, '**');
+
+    // 2. Decode HTML entities (DO NOT use stripHtml — it kills newlines)
+    text = text.replace(/&amp;/g, '&');
+    text = text.replace(/&lt;/g, '<');
+    text = text.replace(/&gt;/g, '>');
+    text = text.replace(/&quot;/g, '"');
+    text = text.replace(/&#0?39;/g, "'");
+    text = text.replace(/&nbsp;/g, ' ');
+    text = text.replace(/&#x27;/g, "'");
+    text = text.replace(/&#x2F;/g, '/');
+
+    // 3. Strip remaining HTML tags (but preserve newlines)
+    text = text.replace(/<[^>]*>/g, '');
+
+    // 4. Normalize spaces on each line (but keep newlines)
+    text = text.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trim()).join('\n');
+
+    // 5. Convert bullet markers to proper markdown list items
+    text = text.replace(/^\s*[•●◦▪■►]\s*/gm, '- ');
+
+    // 6. Detect section headers (common patterns in JSearch descriptions)
+    const headerPatterns = [
+        'Key Responsibilities', 'Role and Responsibilities', 'Responsibilities',
+        'Key Requirements', 'Required Skills', 'Required Qualifications', 'Requirements',
+        'Minimum Qualifications', 'Preferred Qualifications', 'Qualifications',
+        'Skills Required', 'Technical Skills', 'Skills Needed', 'Skills',
+        'What You Will Do', 'What We Are Looking For',
+        "What You'll Do", "What You'll Bring", 'What We Offer',
+        'About the Role', 'About Us', 'About The Company', 'About The Team',
+        'Job Description', 'Role Description', 'Position Overview',
+        'Nice to Have', 'Benefits', 'Perks', 'Compensation',
+        'Educational Qualifications', 'Education', 'Desired Skills',
+        'Experience With', 'Experience',
+        'WHAT YOU\'LL DO', 'WHAT WE ARE LOOKING FOR',
+        'Duties',
+    ];
+
+    // Sort by length descending so longer patterns match first
+    headerPatterns.sort((a, b) => b.length - a.length);
+
+    for (const header of headerPatterns) {
+        const escapedHeader = header.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Match at start of line, optionally followed by : 
+        const regex = new RegExp(`^\\s*${escapedHeader}\\s*:?\\s*$`, 'gim');
+        text = text.replace(regex, `\n## ${header}\n`);
+    }
+
+    // 7. Clean up multiple blank lines
+    text = text.replace(/\n{3,}/g, '\n\n');
+
+    // 8. Ensure list items have a blank line before the first one
+    text = text.replace(/([^\n])\n(- )/g, '$1\n\n$2');
+
+    // 9. Trim
+    text = text.trim();
+
+    // 10. Fallback
+    if (text.length < 20) {
+        return `${stripHtml(title)} position at ${stripHtml(company)}`;
+    }
+
+    return text;
+}
+
 function extractSkills(text) {
     if (!text) return [];
 

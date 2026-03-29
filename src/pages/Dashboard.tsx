@@ -5,6 +5,7 @@ import { useUser, useClerk, useAuth } from "@clerk/clerk-react";
 import { jobsApi, savedJobsApi, appliedJobsApi, profileApi, Job } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { BriefcaseDoodle } from "@/components/doodles";
+import ReactMarkdown from "react-markdown";
 
 
 const Dashboard = () => {
@@ -13,7 +14,7 @@ const Dashboard = () => {
   const { getToken } = useAuth();
   const { toast } = useToast();
 
-  // Profile data for sidebar
+  // Profile data for header
   const [profileName, setProfileName] = useState("");
   const [profileRole, setProfileRole] = useState("");
 
@@ -48,6 +49,13 @@ const Dashboard = () => {
     () => sessionStorage.getItem('dashboard_sortBy') || "relevance"
   );
 
+  // Selected job for detail panel
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
+  // Filter panel visibility
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+
   // Persist search & filter state to sessionStorage
   useEffect(() => {
     sessionStorage.setItem('dashboard_searchQuery', searchQuery);
@@ -81,10 +89,7 @@ const Dashboard = () => {
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Active navigation
-  const [activeNav, setActiveNav] = useState("dashboard");
-
-  // Load profile data for sidebar
+  // Load profile data for header
   useEffect(() => {
     const loadProfile = async () => {
       if (!user) return;
@@ -96,7 +101,7 @@ const Dashboard = () => {
           setProfileRole(res.data.role || "");
         }
       } catch (err) {
-        console.error('Error loading profile for sidebar:', err);
+        console.error('Error loading profile for header:', err);
       }
     };
     loadProfile();
@@ -164,6 +169,7 @@ const Dashboard = () => {
       setApiPage(1);
       setHasMore(false);
       setCurrentPage(1);
+      setSelectedJobId(null);
       setSubmittedQuery(searchQuery);
     }
   };
@@ -319,6 +325,13 @@ const Dashboard = () => {
     setCurrentPage(1);
   }, [filteredAndSortedJobs]);
 
+  // Auto-select first job when results load
+  useEffect(() => {
+    if (filteredAndSortedJobs.length > 0 && !selectedJobId) {
+      setSelectedJobId(filteredAndSortedJobs[0].id);
+    }
+  }, [filteredAndSortedJobs]);
+
   // Pagination computed values
   const totalPages = Math.ceil(filteredAndSortedJobs.length / JOBS_PER_PAGE);
   const paginatedJobs = filteredAndSortedJobs.slice(
@@ -326,362 +339,567 @@ const Dashboard = () => {
     currentPage * JOBS_PER_PAGE
   );
 
-  // Generate page numbers with ellipsis
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    if (totalPages <= 7) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-    } else {
-      pages.push(1);
-      if (currentPage > 3) pages.push('...');
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
-      for (let i = start; i <= end; i++) pages.push(i);
-      if (currentPage < totalPages - 2) pages.push('...');
-      pages.push(totalPages);
-    }
-    return pages;
+  // Selected job object
+  const selectedJob = filteredAndSortedJobs.find(j => j.id === selectedJobId) || null;
+
+  // Match score color helpers
+  const getMatchPillClasses = (score: number) => {
+    if (score >= 90) return "bg-primary/10 text-primary";
+    if (score >= 80) return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-500";
+    return "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400";
   };
 
   if (!isLoaded) return null;
 
+  const displayName = profileName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User';
+  const displayRole = profileRole || 'Set your role in Profile';
+
   return (
-    <div className="bg-background-light dark:bg-background-dark text-[#111418] dark:text-white h-screen overflow-hidden flex font-sans">
-      <aside className="w-72 bg-white dark:bg-[#1a2632] border-r border-[#e5e7eb] dark:border-[#2a3642] flex flex-col shrink-0 h-full overflow-y-auto">
-        <div className="p-6 pb-2">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl tracking-tight">
-            <BriefcaseDoodle className="h-8 w-8 text-primary" />
+    <div className="bg-[#f6f7f8] dark:bg-[#101922] text-[#111418] dark:text-white h-screen overflow-hidden flex flex-col font-sans">
+      {/* ========== HEADER ========== */}
+      <header className="bg-white dark:bg-[#1a2632] border-b border-[#e5e7eb] dark:border-[#2a3642] sticky top-0 z-30 px-6 py-3 flex items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-8">
+          <Link to="/" className="flex items-center gap-2 text-primary font-bold text-xl tracking-tight shrink-0">
+            <BriefcaseDoodle className="h-7 w-7 text-primary" />
             <span className="text-foreground">Easy <span className="text-primary">Jobs</span></span>
           </Link>
+          <nav className="hidden md:flex items-center gap-1">
+            <div className="px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-bold cursor-pointer">
+              Dashboard
+            </div>
+            <Link
+              to="/my-applications"
+              className="px-3 py-2 rounded-lg hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6] text-sm font-medium cursor-pointer transition-colors"
+            >
+              Applications
+            </Link>
+            <Link
+              to="/saved-jobs"
+              className="px-3 py-2 rounded-lg hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6] text-sm font-medium cursor-pointer transition-colors"
+            >
+              Saved
+            </Link>
+          </nav>
         </div>
-        <div className="px-4 py-4">
-          <Link to="/profile" className="flex items-center gap-3 p-3 rounded-lg bg-[#f0f2f4] dark:bg-[#23303e] hover:bg-[#e5e7eb] dark:hover:bg-[#2a3642] transition-colors cursor-pointer">
+        <div className="flex items-center gap-4">
+
+          <Link to="/profile" className="flex items-center gap-3 pl-2 hover:opacity-80 transition-opacity">
+            <div className="flex flex-col items-end overflow-hidden">
+              <h1 className="text-[#111418] dark:text-white text-sm font-bold leading-none truncate">
+                {displayName}
+              </h1>
+              <p className="text-[#4b5563] dark:text-[#8492a6] text-[11px] font-normal mt-1 truncate">
+                {displayRole}
+              </p>
+            </div>
             <div
-              className="bg-center bg-no-repeat bg-cover rounded-full size-10 shrink-0"
+              className="bg-center bg-no-repeat bg-cover rounded-full size-9 shrink-0 border border-[#e5e7eb] dark:border-[#2a3642]"
               style={{ backgroundImage: `url("${user?.imageUrl}")` }}
             ></div>
-            <div className="flex flex-col overflow-hidden">
-              <h1 className="text-[#111418] dark:text-white text-sm font-bold leading-normal truncate">
-                {profileName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'}
-              </h1>
-              <p className="text-[#617589] dark:text-[#94a3b8] text-xs font-normal leading-normal truncate">{profileRole || 'Set your role in Profile'}</p>
+          </Link>
+        </div>
+      </header>
+
+      {/* ========== SUB-HEADER: Search & Filters ========== */}
+      <div className="bg-white dark:bg-[#1a2632] border-b border-[#e5e7eb] dark:border-[#2a3642] px-6 py-3 shrink-0">
+        <div className="max-w-[1600px] mx-auto flex items-center gap-3">
+          <form onSubmit={handleSearch} className="relative flex-1 max-w-xl text-[#4b5563] focus-within:text-primary">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <span className="material-symbols-outlined text-[20px]">search</span>
             </div>
-          </Link>
-        </div>
-
-        <div className="flex flex-col gap-1 px-4">
-          <div
-            onClick={() => setActiveNav("dashboard")}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${activeNav === "dashboard" ? "bg-primary/10 text-primary" : "hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#617589] dark:text-[#94a3b8]"}`}
-          >
-            <span className="material-symbols-outlined text-[20px]" style={activeNav === "dashboard" ? { fontVariationSettings: "'FILL' 1" } : {}}>dashboard</span>
-            <p className={`text-sm ${activeNav === "dashboard" ? "font-bold" : "font-medium"}`}>Dashboard</p>
-          </div>
-          <Link
-            to="/my-applications"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#617589] dark:text-[#94a3b8]"
-          >
-            <span className="material-symbols-outlined text-[20px]">work</span>
-            <p className="text-sm font-medium">My Applications</p>
-          </Link>
-          <Link
-            to="/saved-jobs"
-            className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#617589] dark:text-[#94a3b8]"
-          >
-            <span className="material-symbols-outlined text-[20px]">bookmark</span>
-            <p className="text-sm font-medium">Saved Jobs</p>
-          </Link>
-        </div>
-
-        <div className="h-px bg-[#e5e7eb] dark:bg-[#2a3642] my-4 mx-6"></div>
-
-        <div className="px-6 flex flex-col gap-6 mb-8">
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider">Job Type</h3>
-            {["Full-time", "Internship"].map(type => (
-              <label key={type} className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={selectedJobTypes.includes(type)}
-                  onChange={() => toggleFilter(type, selectedJobTypes, setSelectedJobTypes)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-[#111418] dark:text-gray-200">{type}</span>
-              </label>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider">Experience</h3>
-            {["0-1 Years", "2-5 Years", "5+ Years"].map(exp => (
-              <label key={exp} className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={selectedExperience.includes(exp)}
-                  onChange={() => toggleFilter(exp, selectedExperience, setSelectedExperience)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-[#111418] dark:text-gray-200">{exp}</span>
-              </label>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider">Location</h3>
-            {["Remote", "Bangalore", "Hyderabad", "Pune", "Delhi"].map(loc => (
-              <label key={loc} className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={selectedLocations.includes(loc)}
-                  onChange={() => toggleFilter(loc, selectedLocations, setSelectedLocations)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-[#111418] dark:text-gray-200">{loc}</span>
-              </label>
-            ))}
-          </div>
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider">Salary (LPA)</h3>
-            {["0 - 10 LPA", "10 - 25 LPA", "25 - 40 LPA", "40+ LPA"].map(sal => (
-              <label key={sal} className="flex items-center gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={selectedSalary.includes(sal)}
-                  onChange={() => toggleFilter(sal, selectedSalary, setSelectedSalary)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="text-sm text-[#111418] dark:text-gray-200">{sal}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-      </aside>
-
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-background-light dark:bg-background-dark">
-        <header className="bg-white dark:bg-[#1a2632] border-b border-[#e5e7eb] dark:border-[#2a3642] sticky top-0 z-20 px-8 py-4 flex items-center justify-between gap-4">
-          <div className="flex-1 max-w-2xl flex items-center gap-4">
-            <form onSubmit={handleSearch} className="relative flex-1 text-[#617589] focus-within:text-primary">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <span className="material-symbols-outlined text-[20px]">search</span>
-              </div>
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="block w-full rounded-lg border-none bg-[#f0f2f4] dark:bg-[#23303e] py-2.5 pl-10 pr-3 text-[#111418] dark:text-white placeholder:text-[#617589] focus:ring-2 focus:ring-primary sm:text-sm sm:leading-6"
-                placeholder="Search by job title, skill, or company..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </form>
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none z-10">
-                <span className="material-symbols-outlined text-[20px] text-[#617589]">sort</span>
-              </div>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none block w-44 rounded-lg border-none bg-[#f0f2f4] dark:bg-[#23303e] py-2.5 pl-10 pr-10 text-[#111418] dark:text-white text-sm font-medium focus:ring-2 focus:ring-primary cursor-pointer transition-all"
-              >
-                <option value="relevance">Relevance</option>
-                <option value="date">Date Posted</option>
-                <option value="match">Highest Match</option>
-              </select>
-            </div>
-          </div>
-
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          <div className="max-w-5xl mx-auto flex flex-col gap-6">
-            <div className="flex flex-col gap-4">
-              {!hasSearched ? (
-                <div className="flex flex-col items-center justify-center py-24 gap-6">
-                  <div className="relative">
-                    <div className="absolute -inset-4 bg-primary/5 dark:bg-primary/10 rounded-full blur-xl animate-pulse"></div>
-                    <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 dark:from-primary/30 dark:to-primary/10 flex items-center justify-center border border-primary/10">
-                      <span className="material-symbols-outlined text-primary text-4xl">work</span>
-                    </div>
-                  </div>
-                  <div className="text-center max-w-md">
-                    <h2 className="text-xl font-bold text-[#111418] dark:text-white mb-2">Find your dream job</h2>
-                    <p className="text-sm text-[#617589] dark:text-[#94a3b8] leading-relaxed">Search thousands of jobs by title, skill, or company name to discover opportunities tailored for you.</p>
-                  </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="block w-full rounded-lg border-none bg-[#f0f2f4] dark:bg-[#23303e] py-2 pl-10 pr-3 text-[#111418] dark:text-white placeholder:text-[#4b5563] focus:ring-2 focus:ring-primary sm:text-sm"
+              placeholder="Search job titles, skills..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </form>
+          <div className="relative">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#111418] dark:text-white text-sm font-medium transition-colors"
+            >
+              <span className="material-symbols-outlined text-[20px]">tune</span>
+              <span>Filters</span>
+            </button>
+            {/* Filter Dropdown */}
+            {showFilters && (
+              <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-[#1a2632] border border-[#e5e7eb] dark:border-[#2a3642] rounded-xl shadow-xl z-40 p-5 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-[#111418] dark:text-white">Filters</h3>
                   <button
                     onClick={() => {
-                      searchInputRef.current?.focus();
+                      setSelectedJobTypes([]);
+                      setSelectedExperience([]);
+                      setSelectedLocations([]);
+                      setSelectedSalary([]);
                     }}
-                    className="flex items-center gap-2.5 px-8 py-3 bg-primary hover:bg-blue-600 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]"
+                    className="text-xs text-primary hover:underline font-medium"
                   >
-                    <span className="material-symbols-outlined text-[20px]">search</span>
-                    <span>Search Jobs</span>
+                    Clear all
                   </button>
                 </div>
-              ) : isSearching ? (
-                <div className="flex items-center justify-center py-12">
-                  <span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span>
+                <div className="flex flex-col gap-2.5">
+                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Job Type</h4>
+                  {["Full-time", "Internship"].map(type => (
+                    <label key={type} className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedJobTypes.includes(type)}
+                        onChange={() => toggleFilter(type, selectedJobTypes, setSelectedJobTypes)}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-[#111418] dark:text-gray-200">{type}</span>
+                    </label>
+                  ))}
                 </div>
-              ) : filteredAndSortedJobs.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">No jobs found.</div>
-              ) : (
-                paginatedJobs.map(job => (
-                  <div key={job.id} className="relative flex flex-col md:flex-row items-center gap-5 rounded-xl bg-white dark:bg-[#1a2632] p-5 shadow-sm border border-[#e5e7eb] dark:border-[#2a3642] hover:shadow-md transition-shadow md:min-h-[140px]">
-                    <div className="absolute top-4 right-3 flex items-center gap-3">
-                      <p className="text-xs text-[#617589] dark:text-[#94a3b8] whitespace-nowrap">Posted {job.postedDate}</p>
-                      <button
-                        onClick={() => toggleSaveJob(job)}
-                        className="p-1 text-[#617589] hover:text-primary transition-colors focus:outline-none group"
-                      >
-                        <span
-                          className={`material-symbols-outlined text-[18px] ${savedJobs.has(job.id) ? 'filled text-primary' : 'group-active:filled'}`}
-                          style={savedJobs.has(job.id) ? { fontVariationSettings: "'FILL' 1" } : { fontVariationSettings: "'FILL' 0" }}
+                <div className="flex flex-col gap-2.5">
+                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Experience</h4>
+                  {["0-1 Years", "2-5 Years", "5+ Years"].map(exp => (
+                    <label key={exp} className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedExperience.includes(exp)}
+                        onChange={() => toggleFilter(exp, selectedExperience, setSelectedExperience)}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-[#111418] dark:text-gray-200">{exp}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Location</h4>
+                  {["Remote", "Bangalore", "Hyderabad", "Pune", "Delhi"].map(loc => (
+                    <label key={loc} className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedLocations.includes(loc)}
+                        onChange={() => toggleFilter(loc, selectedLocations, setSelectedLocations)}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-[#111418] dark:text-gray-200">{loc}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Salary (LPA)</h4>
+                  {["0 - 10 LPA", "10 - 25 LPA", "25 - 40 LPA", "40+ LPA"].map(sal => (
+                    <label key={sal} className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedSalary.includes(sal)}
+                        onChange={() => toggleFilter(sal, selectedSalary, setSelectedSalary)}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-[#111418] dark:text-gray-200">{sal}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              className="flex items-center justify-between gap-3 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-transparent hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] transition-colors py-2 pl-4 pr-3 text-[#111418] dark:text-white text-sm font-medium outline-none cursor-pointer"
+            >
+              <span>{sortBy === "relevance" ? "Sort by : Relevance" : sortBy === "date" ? "Sort by : Newest" : "Sort by : Match %"}</span>
+              <span className="material-symbols-outlined text-[18px] text-[#4b5563]">expand_more</span>
+            </button>
+            {showSortDropdown && (
+              <div className="absolute top-full right-0 mt-2 w-[180px] bg-white dark:bg-[#1a2632] border border-[#e5e7eb] dark:border-[#2a3642] rounded-xl shadow-xl z-40 p-2 space-y-1">
+                <button
+                  onClick={() => { setSortBy("relevance"); setShowSortDropdown(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === "relevance" ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" : "text-[#111418] dark:text-white hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"}`}
+                >
+                  Sort by : Relevance
+                </button>
+                <button
+                  onClick={() => { setSortBy("date"); setShowSortDropdown(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === "date" ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" : "text-[#111418] dark:text-white hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"}`}
+                >
+                  Sort by : Newest
+                </button>
+                <button
+                  onClick={() => { setSortBy("match"); setShowSortDropdown(false); }}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === "match" ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" : "text-[#111418] dark:text-white hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"}`}
+                >
+                  Sort by : Match %
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Close filter dropdown when clicking outside */}
+      {showFilters && (
+        <div className="fixed inset-0 z-30" onClick={() => setShowFilters(false)}></div>
+      )}
+
+      {/* ========== MAIN CONTENT SPLIT VIEW ========== */}
+      <main className="flex-1 flex overflow-hidden">
+        {/* Before search: full-width empty state */}
+        {!hasSearched ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8">
+            <div className="relative">
+              <div className="absolute -inset-4 bg-primary/5 dark:bg-primary/10 rounded-full blur-xl animate-pulse"></div>
+              <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 dark:from-primary/30 dark:to-primary/10 flex items-center justify-center border border-primary/10">
+                <span className="material-symbols-outlined text-primary text-4xl">work</span>
+              </div>
+            </div>
+            <div className="text-center max-w-md">
+              <h2 className="text-xl font-bold text-[#111418] dark:text-white mb-2">Find your dream job</h2>
+              <p className="text-sm text-[#4b5563] dark:text-[#8492a6] leading-relaxed">Search thousands of jobs by title, skill, or company name to discover opportunities tailored for you.</p>
+            </div>
+            <button
+              onClick={() => searchInputRef.current?.focus()}
+              className="flex items-center gap-2.5 px-8 py-3 bg-primary hover:bg-blue-600 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span className="material-symbols-outlined text-[20px]">search</span>
+              <span>Search Jobs</span>
+            </button>
+          </div>
+        ) : isSearching ? (
+          <div className="flex-1 flex items-center justify-center">
+            <span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span>
+          </div>
+        ) : filteredAndSortedJobs.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-gray-500">No jobs found.</div>
+        ) : (
+          <>
+            {/* ===== LEFT COLUMN: Job List (40%) ===== */}
+            <section className="w-[40%] flex flex-col border-r border-[#e5e7eb] dark:border-[#2a3642] bg-[#f8fafc] dark:bg-[#111827]">
+              <div className="flex-1 overflow-y-auto py-2">
+                {paginatedJobs.map((job) => (
+                  <div
+                    key={job.id}
+                    onClick={() => setSelectedJobId(job.id)}
+                    className={`mx-4 my-3 p-4 bg-white dark:bg-[#1a2632] rounded-xl shadow-sm cursor-pointer transition-colors border-2 ${selectedJobId === job.id
+                      ? "border-primary"
+                      : "border-transparent hover:shadow"
+                      }`}
+                  >
+                    <div className="flex gap-4">
+                      {/* Company logo */}
+                      <div className="w-12 h-12 rounded-lg border border-gray-100 dark:border-gray-700 shrink-0 overflow-hidden bg-white flex items-center justify-center">
+                        {job.companyLogo ? (
+                          <img
+                            src={job.companyLogo}
+                            alt={`${job.company} logo`}
+                            className="w-full h-full object-contain p-1"
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              if (target.nextElementSibling) {
+                                (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`w-full h-full rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 items-center justify-center text-lg font-bold text-primary ${job.companyLogo ? 'hidden' : 'flex'}`}
                         >
-                          bookmark
-                        </span>
-                      </button>
-                    </div>
-                    <div className="shrink-0 self-start md:self-center">
-                      {job.companyLogo ? (
-                        <img
-                          src={job.companyLogo}
-                          alt={`${job.company} logo`}
-                          className="w-14 h-14 rounded-lg border border-gray-100 dark:border-gray-700 bg-white object-contain p-1"
-                          onError={(e) => {
-                            const target = e.currentTarget;
-                            target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className={`w-14 h-14 rounded-lg border border-gray-100 dark:border-gray-700 bg-gradient-to-br from-primary/20 to-primary/5 dark:from-primary/30 dark:to-primary/10 flex items-center justify-center ${job.companyLogo ? 'hidden' : ''}`}
-                      >
-                        <span className="text-lg font-bold text-primary">
                           {job.company?.charAt(0)?.toUpperCase() || '?'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={`flex-1 flex flex-col gap-1.5 min-w-0 w-full ${!(job.skills && job.skills.length > 0) ? 'justify-center' : ''}`}>
-                      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <h2 className="text-lg font-bold text-[#111418] dark:text-white leading-tight">{job.title}</h2>
-                            {job.matchScore >= 0 && (
-                              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-bold whitespace-nowrap ${job.matchScore >= 90 ? 'bg-primary/10 text-primary' : job.matchScore >= 80 ? 'bg-yellow-500/10 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
-                                <span className="material-symbols-outlined text-[16px] filled" style={{ fontVariationSettings: "'FILL' 1" }}>pie_chart</span>
-                                {job.matchScore}% Match
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-[#617589] dark:text-[#94a3b8] text-sm font-normal mt-0.5">{job.company} • {job.location} • {job.salary}</p>
                         </div>
                       </div>
-                      <p className="text-[13px] text-[#617589]/80 dark:text-[#94a3b8]/80 font-normal leading-relaxed overflow-hidden text-ellipsis whitespace-nowrap max-w-full">{job.description}</p>
-                      {job.skills && job.skills.length > 0 && (
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {job.skills.slice(0, 3).map((skill, i) => (
-                            <span key={i} className="px-2.5 py-1 rounded-md bg-[#f0f2f4] dark:bg-[#23303e] text-[#617589] dark:text-[#94a3b8] text-xs font-medium border border-transparent dark:border-[#334155]">{skill}</span>
-                          ))}
+                      {/* Job info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="text-sm font-bold text-[#111418] dark:text-white truncate">{job.title}</h3>
+                          {job.matchScore >= 0 && (
+                            <div className={`match-pill inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold whitespace-nowrap ${getMatchPillClasses(job.matchScore)}`}>
+                              {job.matchScore}% Match
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex flex-row md:flex-col justify-end gap-3 shrink-0 w-full md:w-auto md:pl-4 md:border-l md:border-dashed border-[#e5e7eb] dark:border-[#2a3642]">
-                      <button
-                        onClick={async (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          // Track application FIRST, then open URL
-                          if (user) {
-                            try {
-                              const token = await getToken();
-                              await appliedJobsApi.apply(user.id, job, token || undefined);
-                              toast({ title: "Application tracked!" });
-                            } catch (err) {
-                              console.error('Error tracking application:', err);
-                              toast({
-                                title: "Error",
-                                description: "Could not track application.",
-                                variant: "destructive",
-                              });
-                            }
-                          }
-                          // Open the apply URL after tracking
-                          if (job.applyUrl) {
-                            window.open(job.applyUrl, '_blank');
-                          }
-                        }}
-                        className="flex-1 md:flex-none h-10 px-6 bg-primary hover:bg-blue-600 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm shadow-blue-500/30"
-                      >
-                        <span>Apply Now</span>
-                        <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-                      </button>
+                        <p className="text-xs text-[#4b5563] dark:text-[#8492a6] mt-0.5">{job.company} • {job.location}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-[10px] text-[#4b5563] dark:text-[#8492a6]">{job.postedDate}</span>
+                          <span className="text-[10px] text-[#4b5563]/50">•</span>
+                          <span className="text-[10px] font-medium text-[#4b5563] dark:text-[#8492a6]">{job.salary}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
 
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 pb-4">
-                <p className="text-sm text-[#617589] dark:text-[#94a3b8]">
-                  Showing{' '}
-                  <span className="font-semibold text-[#111418] dark:text-white">{(currentPage - 1) * JOBS_PER_PAGE + 1}</span>
-                  –
-                  <span className="font-semibold text-[#111418] dark:text-white">{Math.min(currentPage * JOBS_PER_PAGE, filteredAndSortedJobs.length)}</span>
-                  {' '}of{' '}
-                  <span className="font-semibold text-[#111418] dark:text-white">{filteredAndSortedJobs.length}</span>
-                  {' '}jobs
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#617589] dark:text-[#94a3b8] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                    Prev
-                  </button>
-                  {getPageNumbers().map((page, idx) =>
-                    typeof page === 'string' ? (
-                      <span key={`ellipsis-${idx}`} className="px-2 text-[#617589] dark:text-[#94a3b8] text-sm select-none">…</span>
-                    ) : (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`min-w-[36px] h-9 px-2 text-sm font-medium rounded-lg transition-colors ${currentPage === page
-                          ? 'bg-primary text-white shadow-sm shadow-blue-500/30'
-                          : 'border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#617589] dark:text-[#94a3b8] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]'
-                          }`}
-                      >
-                        {page}
-                      </button>
-                    )
-                  )}
-                  <button
-                    onClick={() => {
-                      if (currentPage === totalPages && hasMore) {
-                        loadMoreJobs();
-                      } else {
-                        setCurrentPage(p => Math.min(totalPages, p + 1));
-                      }
-                    }}
-                    disabled={currentPage === totalPages && !hasMore}
-                    className="flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#617589] dark:text-[#94a3b8] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {currentPage === totalPages && hasMore ? 'Load More' : 'Next'}
-                    <span className="material-symbols-outlined text-[18px]">{currentPage === totalPages && hasMore ? 'add' : 'chevron_right'}</span>
-                  </button>
+                {/* Load more / pagination indicator */}
+                {isLoadingMore && (
+                  <div className="flex items-center justify-center py-4 gap-2">
+                    <span className="material-symbols-outlined animate-spin text-primary text-xl">refresh</span>
+                    <span className="text-xs text-[#4b5563]">Loading more...</span>
+                  </div>
+                )}
+
+                {/* Pagination at bottom of list */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 py-4 px-4">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1.5 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#4b5563] hover:bg-[#f0f2f4] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                    </button>
+                    <span className="text-xs text-[#4b5563] dark:text-[#8492a6]">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (currentPage === totalPages && hasMore) {
+                          loadMoreJobs();
+                        } else {
+                          setCurrentPage(p => Math.min(totalPages, p + 1));
+                        }
+                      }}
+                      disabled={currentPage === totalPages && !hasMore}
+                      className="p-1.5 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#4b5563] hover:bg-[#f0f2f4] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* ===== RIGHT COLUMN: Job Details (60%) ===== */}
+            <section className="w-[60%] flex flex-col bg-[#f6f7f8] dark:bg-[#101922] overflow-y-auto">
+              {selectedJob ? (
+                <div className="max-w-5xl mx-auto w-full p-8 px-12">
+                  <div className="bg-white dark:bg-[#1a2632] rounded-2xl border border-[#e5e7eb] dark:border-[#2a3642] shadow-sm overflow-hidden">
+                    <div className="p-8">
+                      {/* Header Section */}
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 rounded-xl border border-gray-100 dark:border-gray-700 overflow-hidden bg-white flex items-center justify-center shrink-0">
+                            {selectedJob.companyLogo ? (
+                              <img
+                                src={selectedJob.companyLogo}
+                                alt={`${selectedJob.company} logo`}
+                                className="w-full h-full object-contain p-1"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  target.style.display = 'none';
+                                  if (target.nextElementSibling) {
+                                    (target.nextElementSibling as HTMLElement).style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className={`w-full h-full rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 items-center justify-center text-2xl font-bold text-primary ${selectedJob.companyLogo ? 'hidden' : 'flex'}`}
+                            >
+                              {selectedJob.company?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                          </div>
+                          <div>
+                            <h1 className="text-2xl font-bold text-[#111418] dark:text-white">{selectedJob.title}</h1>
+                            <p className="text-lg text-[#4b5563] dark:text-[#8492a6] font-medium">{selectedJob.company}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleSaveJob(selectedJob)}
+                            className="p-2 text-[#4b5563] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] transition-colors"
+                          >
+                            <span
+                              className={`material-symbols-outlined ${savedJobs.has(selectedJob.id) ? 'text-primary' : ''}`}
+                              style={savedJobs.has(selectedJob.id) ? { fontVariationSettings: "'FILL' 1" } : {}}
+                            >
+                              bookmark
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Metadata Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-y border-[#e5e7eb] dark:border-[#2a3642]">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Salary</span>
+                          <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.salary || 'Not specified'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Location</span>
+                          <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.location}{selectedJob.remote ? ' (Remote)' : ''}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Experience</span>
+                          <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.experienceLevel || 'Not specified'}</span>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Posted</span>
+                          <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.postedDate}</span>
+                        </div>
+                      </div>
+
+                      {/* Action Bar */}
+                      <div className="mt-6 flex items-center justify-between pb-8">
+                        {selectedJob.matchScore >= 0 && (
+                          <div className="match-pill inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary text-sm font-bold">
+                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>pie_chart</span>
+                            {selectedJob.matchScore}% Match for your profile
+                          </div>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (user) {
+                              try {
+                                const token = await getToken();
+                                await appliedJobsApi.apply(user.id, selectedJob, token || undefined);
+                                toast({ title: "Application tracked!" });
+                              } catch (err) {
+                                console.error('Error tracking application:', err);
+                                toast({
+                                  title: "Error",
+                                  description: "Could not track application.",
+                                  variant: "destructive",
+                                });
+                              }
+                            }
+                            if (selectedJob.applyUrl) {
+                              window.open(selectedJob.applyUrl, '_blank');
+                            }
+                          }}
+                          className="h-12 px-8 bg-primary hover:bg-blue-600 text-white text-base font-bold rounded-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
+                        >
+                          <span>Apply Now</span>
+                        </button>
+                      </div>
+
+                      {/* Detailed Information */}
+                      <div className="space-y-8 pt-8 border-t border-[#e5e7eb] dark:border-[#2a3642]">
+                        <section>
+                          <h2 className="text-lg font-bold mb-4 text-[#111418] dark:text-white">About the Role</h2>
+                          {(selectedJob.fullDescription || selectedJob.description) ? (
+                            <div className="text-[#4b5563] dark:text-[#8492a6] leading-relaxed prose prose-sm max-w-none prose-headings:text-[#111418] dark:prose-headings:text-white prose-headings:text-base prose-headings:font-bold prose-headings:mt-6 prose-headings:mb-3 prose-li:my-0.5 prose-ul:my-2 prose-p:my-2 prose-strong:text-[#111418] dark:prose-strong:text-white">
+                              <ReactMarkdown>{selectedJob.fullDescription || selectedJob.description}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-4 py-8 px-6 rounded-xl bg-[#f8fafc] dark:bg-[#111827] border border-dashed border-[#e5e7eb] dark:border-[#2a3642]">
+                              <span className="material-symbols-outlined text-3xl text-[#4b5563]/50">description</span>
+                              <p className="text-sm text-[#4b5563] dark:text-[#8492a6] text-center max-w-sm">
+                                Full job description is not available from this source. View the complete details on the original posting.
+                              </p>
+                              {selectedJob.applyUrl && selectedJob.applyUrl !== '#' && (
+                                <a
+                                  href={selectedJob.applyUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 px-5 py-2.5 bg-[#f0f2f4] dark:bg-[#23303e] hover:bg-[#e5e7eb] dark:hover:bg-[#2a3642] text-[#111418] dark:text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                  <span>View Full Job Description</span>
+                                  <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </section>
+
+                        {/* Job Highlights */}
+                        {selectedJob.highlights && (
+                          <section>
+                            <h2 className="text-lg font-bold mb-4 text-[#111418] dark:text-white">Job Highlights</h2>
+                            <div className="space-y-5">
+                              {selectedJob.highlights.Qualifications && selectedJob.highlights.Qualifications.length > 0 && (
+                                <div>
+                                  <h3 className="text-sm font-bold text-[#111418] dark:text-white mb-2 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px] text-primary">school</span>
+                                    Qualifications
+                                  </h3>
+                                  <ul className="space-y-1.5 ml-1">
+                                    {selectedJob.highlights.Qualifications.map((item, i) => (
+                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#4b5563] dark:text-[#8492a6]">
+                                        <span className="text-primary mt-1.5 text-[6px]">●</span>
+                                        <span>{item}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {selectedJob.highlights.Responsibilities && selectedJob.highlights.Responsibilities.length > 0 && (
+                                <div>
+                                  <h3 className="text-sm font-bold text-[#111418] dark:text-white mb-2 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px] text-primary">task_alt</span>
+                                    Responsibilities
+                                  </h3>
+                                  <ul className="space-y-1.5 ml-1">
+                                    {selectedJob.highlights.Responsibilities.map((item, i) => (
+                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#4b5563] dark:text-[#8492a6]">
+                                        <span className="text-primary mt-1.5 text-[6px]">●</span>
+                                        <span>{item}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {selectedJob.highlights.Benefits && selectedJob.highlights.Benefits.length > 0 && (
+                                <div>
+                                  <h3 className="text-sm font-bold text-[#111418] dark:text-white mb-2 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-[18px] text-primary">redeem</span>
+                                    Benefits
+                                  </h3>
+                                  <ul className="space-y-1.5 ml-1">
+                                    {selectedJob.highlights.Benefits.map((item, i) => (
+                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#4b5563] dark:text-[#8492a6]">
+                                        <span className="text-primary mt-1.5 text-[6px]">●</span>
+                                        <span>{item}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          </section>
+                        )}
+
+                        {/* Required Skills (full list from JSearch) */}
+                        {selectedJob.requiredSkills && selectedJob.requiredSkills.length > 0 && (
+                          <section>
+                            <h2 className="text-lg font-bold mb-4 text-[#111418] dark:text-white">Required Skills</h2>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedJob.requiredSkills.map((skill, i) => (
+                                <span
+                                  key={i}
+                                  className="px-3 py-1.5 rounded-md bg-primary/5 dark:bg-primary/10 border border-primary/20 dark:border-primary/30 text-sm text-primary font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </section>
+                        )}
+
+                        {/* Skills Needed (extracted/inferred, shown only if no requiredSkills) */}
+                        {(!selectedJob.requiredSkills || selectedJob.requiredSkills.length === 0) && selectedJob.skills && selectedJob.skills.length > 0 && (
+                          <section>
+                            <h2 className="text-lg font-bold mb-4 text-[#111418] dark:text-white">Skills Needed</h2>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedJob.skills.map((skill, i) => (
+                                <span
+                                  key={i}
+                                  className="px-3 py-1.5 rounded-md bg-[#f8fafc] dark:bg-[#111827] border border-[#e5e7eb] dark:border-[#2a3642] text-sm text-[#111418] dark:text-white font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </section>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {isLoadingMore && (
-              <div className="flex items-center justify-center py-6 gap-3">
-                <span className="material-symbols-outlined animate-spin text-primary text-2xl">refresh</span>
-                <span className="text-sm text-[#617589] dark:text-[#94a3b8]">Loading more jobs...</span>
-              </div>
-            )}
-            <div className="h-8"></div>
-          </div>
-        </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-[#4b5563] dark:text-[#8492a6]">
+                  <p className="text-sm">Select a job to view details</p>
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

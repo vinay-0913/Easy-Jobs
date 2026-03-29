@@ -80,17 +80,10 @@ const TestimonialsSection = () => {
               {/* Stars */}
               <div className="mb-4 flex gap-1">
                 {Array.from({ length: testimonial.rating }).map((_, i) => (
-                  <motion.div
+                  <Star
                     key={i}
-                    initial={{ opacity: 0, scale: 0 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ type: "spring", stiffness: 400, damping: 15, delay: 0.3 + index * 0.15 + i * 0.05 }}
-                  >
-                    <Star
-                      className="h-5 w-5 fill-yellow-400 text-yellow-400"
-                    />
-                  </motion.div>
+                    className="h-5 w-5 fill-yellow-400 text-yellow-400"
+                  />
                 ))}
               </div>
 

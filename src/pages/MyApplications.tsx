@@ -232,7 +232,7 @@ const MyApplications = () => {
                             <h1 className="text-[#111418] dark:text-white text-sm font-bold leading-normal truncate">
                                 {user?.firstName} {user?.lastName}
                             </h1>
-                            <p className="text-[#617589] dark:text-[#94a3b8] text-xs font-normal leading-normal truncate">
+                            <p className="text-[#4b5563] dark:text-[#8492a6] text-xs font-normal leading-normal truncate">
                                 Senior Frontend Dev
                             </p>
                         </div>
@@ -242,7 +242,7 @@ const MyApplications = () => {
                 <div className="flex flex-col gap-1 px-4">
                     <Link
                         to="/dashboard"
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#617589] dark:text-[#94a3b8]"
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6]"
                     >
                         <span className="material-symbols-outlined text-[20px]">
                             dashboard
@@ -260,7 +260,7 @@ const MyApplications = () => {
                     </div>
                     <Link
                         to="/saved-jobs"
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#617589] dark:text-[#94a3b8]"
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6]"
                     >
                         <span className="material-symbols-outlined text-[20px]">
                             bookmark
@@ -272,7 +272,7 @@ const MyApplications = () => {
                 <div className="mt-auto p-4">
                     <button
                         onClick={() => signOut()}
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 text-[#617589] dark:text-[#94a3b8] hover:text-red-600 w-full"
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 text-[#4b5563] dark:text-[#8492a6] hover:text-red-600 w-full"
                     >
                         <span className="material-symbols-outlined text-[20px]">
                             logout
@@ -291,7 +291,7 @@ const MyApplications = () => {
                             <h1 className="text-2xl font-bold text-[#111418] dark:text-white">
                                 My Applications
                             </h1>
-                            <p className="text-sm text-[#617589] dark:text-[#94a3b8] mt-1">
+                            <p className="text-sm text-[#4b5563] dark:text-[#8492a6] mt-1">
                                 Manage your automated job search progress.
                             </p>
                         </div>
@@ -300,7 +300,7 @@ const MyApplications = () => {
                         <div className="grid grid-cols-5 gap-4 mb-8">
                             <div className="bg-white dark:bg-[#1a2632] rounded-xl border border-[#e5e7eb] dark:border-[#2a3642] p-5 flex items-center justify-between">
                                 <div>
-                                    <p className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider mb-1">
+                                    <p className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider mb-1">
                                         Total Applied
                                     </p>
                                     <p className="text-3xl font-bold text-[#111418] dark:text-white">
@@ -315,7 +315,7 @@ const MyApplications = () => {
                             </div>
                             <div className="bg-white dark:bg-[#1a2632] rounded-xl border border-[#e5e7eb] dark:border-[#2a3642] p-5 flex items-center justify-between">
                                 <div>
-                                    <p className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider mb-1">
+                                    <p className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider mb-1">
                                         Not Applied
                                     </p>
                                     <p className="text-3xl font-bold text-[#111418] dark:text-white">
@@ -330,7 +330,7 @@ const MyApplications = () => {
                             </div>
                             <div className="bg-white dark:bg-[#1a2632] rounded-xl border border-[#e5e7eb] dark:border-[#2a3642] p-5 flex items-center justify-between">
                                 <div>
-                                    <p className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider mb-1">
+                                    <p className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider mb-1">
                                         Interviews
                                     </p>
                                     <p className="text-3xl font-bold text-[#111418] dark:text-white">
@@ -345,7 +345,7 @@ const MyApplications = () => {
                             </div>
                             <div className="bg-white dark:bg-[#1a2632] rounded-xl border border-[#e5e7eb] dark:border-[#2a3642] p-5 flex items-center justify-between">
                                 <div>
-                                    <p className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider mb-1">
+                                    <p className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider mb-1">
                                         Offers
                                     </p>
                                     <p className="text-3xl font-bold text-[#111418] dark:text-white">
@@ -360,7 +360,7 @@ const MyApplications = () => {
                             </div>
                             <div className="bg-white dark:bg-[#1a2632] rounded-xl border border-[#e5e7eb] dark:border-[#2a3642] p-5 flex items-center justify-between">
                                 <div>
-                                    <p className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider mb-1">
+                                    <p className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider mb-1">
                                         Rejected
                                     </p>
                                     <p className="text-3xl font-bold text-[#111418] dark:text-white">
@@ -379,16 +379,16 @@ const MyApplications = () => {
                         <div className="bg-white dark:bg-[#1a2632] rounded-xl border border-[#e5e7eb] dark:border-[#2a3642] overflow-hidden">
                             {/* Table Header */}
                             <div className="grid grid-cols-[2fr_1fr_1fr_80px] gap-4 px-6 py-4 border-b border-[#e5e7eb] dark:border-[#2a3642]">
-                                <span className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider">
+                                <span className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">
                                     Company & Role
                                 </span>
-                                <span className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider">
+                                <span className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">
                                     Date Applied
                                 </span>
-                                <span className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider">
+                                <span className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">
                                     Status
                                 </span>
-                                <span className="text-xs font-bold text-[#617589] dark:text-[#94a3b8] uppercase tracking-wider text-right">
+                                <span className="text-xs font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider text-right">
                                     Action
                                 </span>
                             </div>
@@ -405,7 +405,7 @@ const MyApplications = () => {
                                     <span className="material-symbols-outlined text-[48px] text-[#d1d5db] dark:text-[#374151] mb-3 block">
                                         work_off
                                     </span>
-                                    <p className="text-[#617589] dark:text-[#94a3b8] text-sm">
+                                    <p className="text-[#4b5563] dark:text-[#8492a6] text-sm">
                                         No applications yet. Apply to jobs from the Dashboard!
                                     </p>
                                 </div>
@@ -448,7 +448,7 @@ const MyApplications = () => {
                                                     <p className="text-sm font-bold text-[#111418] dark:text-white truncate">
                                                         {app.title}
                                                     </p>
-                                                    <p className="text-xs text-[#617589] dark:text-[#94a3b8] truncate">
+                                                    <p className="text-xs text-[#4b5563] dark:text-[#8492a6] truncate">
                                                         {app.company} • {app.location}
                                                     </p>
                                                 </div>
@@ -459,7 +459,7 @@ const MyApplications = () => {
                                                 <p className="text-sm text-[#111418] dark:text-white">
                                                     {formatDate(app.applied_at)}
                                                 </p>
-                                                <p className="text-xs text-[#617589] dark:text-[#94a3b8]">
+                                                <p className="text-xs text-[#4b5563] dark:text-[#8492a6]">
                                                     {timeAgo(app.applied_at)}
                                                 </p>
                                             </div>
@@ -521,7 +521,7 @@ const MyApplications = () => {
                                                             openActionId === jobId ? null : jobId
                                                         )
                                                     }
-                                                    className="p-1.5 rounded-lg hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] transition-colors text-[#617589]"
+                                                    className="p-1.5 rounded-lg hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] transition-colors text-[#4b5563]"
                                                 >
                                                     <span className="material-symbols-outlined text-[20px]">
                                                         more_vert
@@ -550,7 +550,7 @@ const MyApplications = () => {
                             {/* Pagination */}
                             {applications.length > 0 && (
                                 <div className="flex items-center justify-between px-6 py-4 border-t border-[#e5e7eb] dark:border-[#2a3642]">
-                                    <p className="text-xs text-[#617589] dark:text-[#94a3b8]">
+                                    <p className="text-xs text-[#4b5563] dark:text-[#8492a6]">
                                         Showing{" "}
                                         <span className="font-bold text-[#111418] dark:text-white">
                                             {(currentPage - 1) * ITEMS_PER_PAGE + 1}
@@ -574,7 +574,7 @@ const MyApplications = () => {
                                                 setCurrentPage((p) => Math.max(1, p - 1))
                                             }
                                             disabled={currentPage === 1}
-                                            className="px-4 py-1.5 text-xs font-medium rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] text-[#617589] dark:text-[#94a3b8] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                            className="px-4 py-1.5 text-xs font-medium rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] text-[#4b5563] dark:text-[#8492a6] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                         >
                                             Previous
                                         </button>

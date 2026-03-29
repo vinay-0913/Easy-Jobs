@@ -1,7 +1,7 @@
 # Easy Jobs 🚀
 
-**AI-powered job matching that simplifies your job search.**  
-Upload your profile, set preferences, and let us find the best-matched jobs from across the web.
+**Personalized job matching that simplifies your job search.**  
+Create your profile, set preferences, and let us find the best-matched jobs from across the web.
 
 🌐 **Live Demo:** [easy-jobs-five.vercel.app](https://easy-jobs-five.vercel.app)
 
@@ -105,37 +105,4 @@ Both frontend and backend are deployed separately on **Vercel**.
 
 ---
 
-## Project Structure
 
-```
-easyjobs/
-├── src/
-│   ├── components/
-│   │   └── landing/        # Landing page sections
-│   ├── pages/              # Dashboard, Profile, Auth, etc.
-│   └── lib/api/            # API client
-├── backend/
-│   ├── routes/             # jobs.js, profile.js
-│   ├── models/             # Profile.js (Mongoose)
-│   └── server.js           # Express server
-└── public/                 # Static assets
-```
-
----
-
-## Environment Variables
-
-| Variable | Where | Description |
-|----------|-------|-------------|
-| `VITE_CLERK_PUBLISHABLE_KEY` | Frontend | Clerk public key |
-| `VITE_API_URL` | Frontend | Backend API base URL |
-| `CLERK_SECRET_KEY` | Backend | Clerk secret key |
-| `MONGODB_URI` | Backend | MongoDB connection string |
-| `JSEARCH_API_KEY` | Backend | RapidAPI JSearch key |
-| `FRONTEND_URL` | Backend | Frontend URL (for CORS) |
-
----
-
-## License
-
-MIT

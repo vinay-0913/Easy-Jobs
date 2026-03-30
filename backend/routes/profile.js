@@ -77,21 +77,21 @@ router.post('/skills', async (req, res) => {
     try {
         const userId = getUserId(req);
         const { skill, proficiency } = req.body;
+        
         let profile = await Profile.findOne({ clerkUserId: userId });
-
         if (!profile) {
-            profile = new Profile({ clerkUserId: userId, skills: [] });
+            await Profile.create({ clerkUserId: userId, skills: [] });
         }
 
-        // Check if skill exists
-        const exists = profile.skills.find(s => s.skill === skill);
-        if (!exists) {
-            profile.skills.push({ skill, proficiency });
-            await profile.save();
-        }
+        // Add skill if it doesn't exist
+        await Profile.findOneAndUpdate(
+            { clerkUserId: userId, 'skills.skill': { $ne: skill } },
+            { $push: { skills: { skill, proficiency } } }
+        );
 
         res.json({ success: true, data: { skill, proficiency } });
     } catch (err) {
+        console.error('Profile POST /skills error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
@@ -193,21 +193,21 @@ router.post('/saved-jobs', async (req, res) => {
         let profile = await Profile.findOne({ clerkUserId: userId });
 
         if (!profile) {
-            profile = new Profile({ clerkUserId: userId, saved_jobs: [] });
+            await Profile.create({ clerkUserId: userId, saved_jobs: [] });
         }
 
-        // Check if already saved
-        const exists = profile.saved_jobs.find(j => j.job_id === job_id);
-        if (!exists) {
-            profile.saved_jobs.push({
+        // Atomically push if job_id isn't already saved
+        await Profile.findOneAndUpdate(
+            { clerkUserId: userId, 'saved_jobs.job_id': { $ne: job_id } },
+            { $push: { saved_jobs: {
                 job_id, title, company, location, salary, description, apply_url, remote,
                 matchScore, skills, company_logo
-            });
-            await profile.save();
-        }
+            } } }
+        );
 
         res.json({ success: true, data: { job_id, title } });
     } catch (err) {
+        console.error('Profile POST /saved-jobs error:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
@@ -253,25 +253,28 @@ router.post('/applied-jobs', async (req, res) => {
         console.log('[POST /applied-jobs] userId:', userId, 'job_id:', job_id, 'title:', title);
 
         let profile = await Profile.findOne({ clerkUserId: userId });
-        console.log('[POST /applied-jobs] profile found:', !!profile, 'existing applied_jobs:', profile?.applied_jobs?.length || 0);
+        console.log('[POST /applied-jobs] profile found:', !!profile);
 
         if (!profile) {
-            profile = new Profile({ clerkUserId: userId, applied_jobs: [] });
+            await Profile.create({ clerkUserId: userId, applied_jobs: [] });
             console.log('[POST /applied-jobs] Created new profile');
         }
 
-        // Check if already applied
-        const exists = profile.applied_jobs.find(j => j.job_id === job_id);
-        if (!exists) {
-            profile.applied_jobs.push({
+        // Atomically push if job_id isn't already applied
+        const updated = await Profile.findOneAndUpdate(
+            { clerkUserId: userId, 'applied_jobs.job_id': { $ne: job_id } },
+            { $push: { applied_jobs: {
                 job_id, title, company, location, salary, description, apply_url, remote, company_logo,
                 status: 'Applied',
                 applied_at: new Date()
-            });
-            const saved = await profile.save();
-            console.log('[POST /applied-jobs] Saved! Now has', saved.applied_jobs.length, 'applied jobs');
+            } } },
+            { new: true }
+        );
+        
+        if (updated) {
+            console.log('[POST /applied-jobs] Saved! Now has', updated.applied_jobs.length, 'applied jobs');
         } else {
-            console.log('[POST /applied-jobs] Job already exists, skipping');
+            console.log('[POST /applied-jobs] Job already exists or user not found, skipping array push');
         }
 
         res.json({ success: true, data: { job_id, title } });

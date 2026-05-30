@@ -80,6 +80,16 @@ export default {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         display: ["Cal Sans", "Inter", "system-ui", "sans-serif"],
+        hanken: ["Hanken Grotesk", "Inter", "system-ui", "sans-serif"],
+      },
+      spacing: {
+        'section-gap': '64px',
+        'margin-mobile': '16px',
+        'container-max': '1280px',
+        'stack-md': '16px',
+        'stack-sm': '8px',
+        'gutter': '24px',
+        'stack-lg': '32px',
       },
       keyframes: {
         "accordion-down": {

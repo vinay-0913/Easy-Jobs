@@ -1,164 +1,160 @@
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
-import {
-  RocketDoodle,
-  TargetDoodle,
-  DocumentDoodle,
-} from "@/components/doodles";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const HeroSection = () => {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  const [jobTitle, setJobTitle] = useState("");
+  const [experience, setExperience] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  const handleSearch = () => {
+    const query = jobTitle.trim();
+    if (!query) return;
+
+    // Store search params in sessionStorage so the Dashboard picks them up on mount
+    sessionStorage.setItem("dashboard_searchQuery", query);
+    sessionStorage.setItem("dashboard_submittedQuery", query);
+
+    // Map the experience field to the Dashboard's filter format
+    if (experience.trim()) {
+      const expLower = experience.toLowerCase();
+      let mapped: string[] = [];
+      if (expLower.includes("0") || expLower.includes("fresher") || expLower.includes("1")) {
+        mapped = ["0-1 Years"];
+      } else if (expLower.includes("2") || expLower.includes("3") || expLower.includes("4") || expLower.includes("5")) {
+        mapped = ["2-5 Years"];
+      } else {
+        mapped = ["5+ Years"];
+      }
+      sessionStorage.setItem("dashboard_experience", JSON.stringify(mapped));
+    } else {
+      sessionStorage.setItem("dashboard_experience", "[]");
+    }
+
+    // Clear other filters so the search starts fresh
+    sessionStorage.setItem("dashboard_jobTypes", "[]");
+    sessionStorage.setItem("dashboard_locations", "[]");
+    sessionStorage.setItem("dashboard_salary", "[]");
+    sessionStorage.setItem("dashboard_sortBy", "relevance");
+
+    navigate("/dashboard");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
+  const handlePopularClick = (term: string) => {
+    setJobTitle(term);
+    sessionStorage.setItem("dashboard_searchQuery", term);
+    sessionStorage.setItem("dashboard_submittedQuery", term);
+    sessionStorage.setItem("dashboard_experience", "[]");
+    sessionStorage.setItem("dashboard_jobTypes", "[]");
+    sessionStorage.setItem("dashboard_locations", "[]");
+    sessionStorage.setItem("dashboard_salary", "[]");
+    sessionStorage.setItem("dashboard_sortBy", "relevance");
+    navigate("/dashboard");
+  };
+
   return (
-    <section className="relative overflow-hidden py-20 md:py-32">
-      {/* Background decorations */}
-      <div className="absolute inset-0 -z-10">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-          className="absolute left-1/4 top-20 h-72 w-72 rounded-full bg-primary/5 blur-3xl"
+    <section
+      ref={sectionRef}
+      className={`relative h-[600px] flex items-center justify-center fade-up ${isVisible ? "visible" : ""}`}
+    >
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img
+          alt="Modern office space with professionals collaborating"
+          className="w-full h-full object-cover"
+          src="/hero-bg.png"
         />
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
-          className="absolute right-1/4 bottom-20 h-96 w-96 rounded-full bg-accent/5 blur-3xl"
-        />
+        <div className="absolute inset-0 bg-gray-900/60" />
       </div>
 
-      {/* Floating doodles */}
-      <motion.div
-        initial={{ opacity: 0, x: -30 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 0.8 }}
-      >
-        <RocketDoodle className="absolute left-8 top-32 hidden h-24 w-24 animate-float text-primary/30 md:block" />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, x: 30 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, delay: 1.0 }}
-      >
-        <TargetDoodle className="absolute right-12 top-40 hidden h-20 w-20 animate-wiggle text-accent/40 md:block" />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 1.2 }}
-      >
-        <DocumentDoodle className="absolute bottom-20 left-16 hidden h-16 w-16 animate-float text-primary/20 md:block" />
-      </motion.div>
+      {/* Content */}
+      <div className="relative z-10 w-full max-w-[1280px] mx-auto px-4 md:px-6 text-center">
+        <h1 className="font-hanken text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+          Find Your Dream Career
+        </h1>
+        <p className="font-hanken text-lg text-gray-200 mb-8 max-w-2xl mx-auto leading-relaxed">
+          Discover opportunities that match your skills and ambitions with our
+          intelligent matching platform.
+        </p>
 
-      <div className="container relative">
-        <div className="mx-auto max-w-3xl text-center">
-          {/* Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm text-primary"
-          >
-            <span>Personalized Job Matching</span>
-          </motion.div>
-
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="mb-6 text-4xl font-bold tracking-tight text-foreground md:text-5xl lg:text-6xl"
-          >
-            Find Your Dream Job{" "}
-            <span className="relative">
-              <span className="text-primary">Simplified</span>
-              <motion.svg
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ duration: 1, delay: 0.8, ease: "easeOut" }}
-                className="absolute -bottom-2 left-0 w-full"
-                viewBox="0 0 200 12"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <motion.path
-                  d="M2 8 Q50 2 100 6 Q150 10 198 4"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  fill="none"
-                  opacity="0.4"
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 1, delay: 0.8, ease: "easeOut" }}
-                />
-              </motion.svg>
+        {/* Search Bar */}
+        <div className="bg-white p-2 rounded-xl shadow-lg max-w-4xl mx-auto flex flex-col md:flex-row gap-2">
+          <div className="flex-1 relative flex items-center">
+            <span className="material-symbols-outlined text-gray-400 absolute left-4">
+              search
             </span>
-          </motion.h1>
-
-          {/* Subheadline */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="mb-10 text-lg text-muted-foreground md:text-xl"
+            <input
+              className="w-full pl-12 pr-4 py-3 bg-white border-0 focus:ring-2 focus:ring-[#137fec] rounded-lg text-gray-900 font-hanken text-base placeholder:text-gray-400"
+              placeholder="Job title, keywords, or company"
+              type="text"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+          <div className="hidden md:block w-px bg-gray-200 my-2" />
+          <div className="flex-1 relative flex items-center">
+            <span className="material-symbols-outlined text-gray-400 absolute left-4">
+              work
+            </span>
+            <input
+              className="w-full pl-12 pr-4 py-3 bg-white border-0 focus:ring-2 focus:ring-[#137fec] rounded-lg text-gray-900 font-hanken text-base placeholder:text-gray-400"
+              placeholder="Experience (e.g. 2+ years)"
+              type="text"
+              value={experience}
+              onChange={(e) => setExperience(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </div>
+          <button
+            onClick={handleSearch}
+            className="bg-[#137fec] hover:bg-[#0f66be] text-white font-semibold text-sm px-8 py-3 rounded-lg transition-colors whitespace-nowrap"
           >
-            Create your profile, set your preferences, and let us find the
-            perfect job matches from across the web. No more endless scrolling
-            through irrelevant listings.
-          </motion.p>
+            Search Jobs
+          </button>
+        </div>
 
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-center justify-center gap-4 sm:flex-row"
+        {/* Popular Tags */}
+        <div className="mt-4 flex items-center justify-center gap-2 text-gray-200 text-sm font-semibold">
+          <span>Popular:</span>
+          <button
+            onClick={() => handlePopularClick("Software Engineer")}
+            className="bg-white/20 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm hover:bg-white/30 transition-colors cursor-pointer"
           >
-            <motion.div
-              whileHover={{ scale: 1.05, boxShadow: "0 10px 30px rgba(59,130,246,0.35)" }}
-              whileTap={{ scale: 0.97 }}
-            >
-              <Button size="lg" className="gap-2 px-8" asChild>
-                <Link to="/auth?mode=signup">
-                  Get Started
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </motion.div>
-          </motion.div>
-
-          {/* Social proof */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-12 flex flex-col items-center gap-4"
+            Software Engineer
+          </button>
+          <button
+            onClick={() => handlePopularClick("Product Manager")}
+            className="bg-white/20 px-3 py-1 rounded-full border border-white/30 backdrop-blur-sm hover:bg-white/30 transition-colors cursor-pointer"
           >
-            <div className="flex -space-x-3">
-              {[
-                "https://randomuser.me/api/portraits/women/44.jpg",
-                "https://randomuser.me/api/portraits/men/32.jpg",
-                "https://randomuser.me/api/portraits/women/68.jpg",
-                "https://randomuser.me/api/portraits/men/75.jpg",
-                "https://randomuser.me/api/portraits/women/90.jpg",
-              ].map((src, i) => (
-                <motion.img
-                  key={i}
-                  src={src}
-                  alt={`Job seeker ${i + 1}`}
-                  className="h-10 w-10 rounded-full border-2 border-background object-cover"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.7 + i * 0.08 }}
-                />
-              ))}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">2,000+</span> job
-              seekers already finding their dream jobs
-            </p>
-          </motion.div>
+            Product Manager
+          </button>
         </div>
       </div>
     </section>

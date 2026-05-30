@@ -66,7 +66,7 @@ router.post('/', async (req, res) => {
 router.get('/skills', async (req, res) => {
     try {
         const userId = getUserId(req);
-        const profile = await Profile.findOne({ clerkUserId: userId });
+        const profile = await Profile.findOne({ clerkUserId: userId }, { skills: 1 });
         res.json({ success: true, data: profile ? profile.skills : [] });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -77,17 +77,21 @@ router.post('/skills', async (req, res) => {
     try {
         const userId = getUserId(req);
         const { skill, proficiency } = req.body;
-        
-        let profile = await Profile.findOne({ clerkUserId: userId });
-        if (!profile) {
-            await Profile.create({ clerkUserId: userId, skills: [] });
-        }
 
-        // Add skill if it doesn't exist
-        await Profile.findOneAndUpdate(
-            { clerkUserId: userId, 'skills.skill': { $ne: skill } },
-            { $push: { skills: { skill, proficiency } } }
-        );
+        // Single atomic operation: upsert profile + push skill if not already present
+        try {
+            await Profile.findOneAndUpdate(
+                { clerkUserId: userId, 'skills.skill': { $ne: skill } },
+                {
+                    $setOnInsert: { clerkUserId: userId },
+                    $push: { skills: { skill, proficiency } }
+                },
+                { upsert: true }
+            );
+        } catch (innerErr) {
+            // E11000 = profile exists but skill already present → no-op
+            if (innerErr.code !== 11000) throw innerErr;
+        }
 
         res.json({ success: true, data: { skill, proficiency } });
     } catch (err) {
@@ -115,7 +119,7 @@ router.delete('/skills', async (req, res) => {
 router.get('/preferences', async (req, res) => {
     try {
         const userId = getUserId(req);
-        const profile = await Profile.findOne({ clerkUserId: userId });
+        const profile = await Profile.findOne({ clerkUserId: userId }, { preferences: 1 });
         res.json({ success: true, data: profile ? profile.preferences : {} });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
@@ -156,7 +160,7 @@ router.post('/preferences', async (req, res) => {
 router.get('/saved-jobs', async (req, res) => {
     try {
         const userId = getUserId(req);
-        const profile = await Profile.findOne({ clerkUserId: userId });
+        const profile = await Profile.findOne({ clerkUserId: userId }, { saved_jobs: 1 });
         // Transform DB fields (snake_case) to frontend fields (camelCase)
         const jobs = profile ? profile.saved_jobs.map(j => {
             const obj = j.toObject();
@@ -190,20 +194,23 @@ router.post('/saved-jobs', async (req, res) => {
         const userId = getUserId(req);
         const { job_id, title, company, location, salary, description, apply_url, remote, matchScore, skills, company_logo } = req.body;
 
-        let profile = await Profile.findOne({ clerkUserId: userId });
-
-        if (!profile) {
-            await Profile.create({ clerkUserId: userId, saved_jobs: [] });
+        // Single atomic operation: upsert profile + push job if not already saved
+        try {
+            await Profile.findOneAndUpdate(
+                { clerkUserId: userId, 'saved_jobs.job_id': { $ne: job_id } },
+                {
+                    $setOnInsert: { clerkUserId: userId },
+                    $push: { saved_jobs: {
+                        job_id, title, company, location, salary, description, apply_url, remote,
+                        matchScore, skills, company_logo
+                    } }
+                },
+                { upsert: true }
+            );
+        } catch (innerErr) {
+            // E11000 = profile exists but job already saved → no-op
+            if (innerErr.code !== 11000) throw innerErr;
         }
-
-        // Atomically push if job_id isn't already saved
-        await Profile.findOneAndUpdate(
-            { clerkUserId: userId, 'saved_jobs.job_id': { $ne: job_id } },
-            { $push: { saved_jobs: {
-                job_id, title, company, location, salary, description, apply_url, remote,
-                matchScore, skills, company_logo
-            } } }
-        );
 
         res.json({ success: true, data: { job_id, title } });
     } catch (err) {
@@ -231,9 +238,7 @@ router.delete('/saved-jobs', async (req, res) => {
 router.get('/applied-jobs', async (req, res) => {
     try {
         const userId = getUserId(req);
-        console.log('[GET /applied-jobs] userId:', userId);
-        const profile = await Profile.findOne({ clerkUserId: userId });
-        console.log('[GET /applied-jobs] applied_jobs count:', profile?.applied_jobs?.length || 0);
+        const profile = await Profile.findOne({ clerkUserId: userId }, { applied_jobs: 1 });
         const jobs = profile && profile.applied_jobs ? profile.applied_jobs.map(j => ({
             ...j.toObject(),
             id: j.job_id || j._id.toString()
@@ -250,31 +255,24 @@ router.post('/applied-jobs', async (req, res) => {
     try {
         const userId = getUserId(req);
         const { job_id, title, company, location, salary, description, apply_url, remote, company_logo } = req.body;
-        console.log('[POST /applied-jobs] userId:', userId, 'job_id:', job_id, 'title:', title);
 
-        let profile = await Profile.findOne({ clerkUserId: userId });
-        console.log('[POST /applied-jobs] profile found:', !!profile);
-
-        if (!profile) {
-            await Profile.create({ clerkUserId: userId, applied_jobs: [] });
-            console.log('[POST /applied-jobs] Created new profile');
-        }
-
-        // Atomically push if job_id isn't already applied
-        const updated = await Profile.findOneAndUpdate(
-            { clerkUserId: userId, 'applied_jobs.job_id': { $ne: job_id } },
-            { $push: { applied_jobs: {
-                job_id, title, company, location, salary, description, apply_url, remote, company_logo,
-                status: 'Applied',
-                applied_at: new Date()
-            } } },
-            { new: true }
-        );
-        
-        if (updated) {
-            console.log('[POST /applied-jobs] Saved! Now has', updated.applied_jobs.length, 'applied jobs');
-        } else {
-            console.log('[POST /applied-jobs] Job already exists or user not found, skipping array push');
+        // Single atomic operation: upsert profile + push job if not already applied
+        try {
+            await Profile.findOneAndUpdate(
+                { clerkUserId: userId, 'applied_jobs.job_id': { $ne: job_id } },
+                {
+                    $setOnInsert: { clerkUserId: userId },
+                    $push: { applied_jobs: {
+                        job_id, title, company, location, salary, description, apply_url, remote, company_logo,
+                        status: 'Applied',
+                        applied_at: new Date()
+                    } }
+                },
+                { upsert: true }
+            );
+        } catch (innerErr) {
+            // E11000 = profile exists but job already applied → no-op
+            if (innerErr.code !== 11000) throw innerErr;
         }
 
         res.json({ success: true, data: { job_id, title } });
@@ -341,7 +339,7 @@ router.get('/:section', validateSection, async (req, res) => {
     try {
         const userId = getUserId(req);
         const { section } = req.params;
-        const profile = await Profile.findOne({ clerkUserId: userId });
+        const profile = await Profile.findOne({ clerkUserId: userId }, { [section]: 1 });
         res.json({ success: true, data: profile ? profile[section] : [] });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });

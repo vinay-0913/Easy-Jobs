@@ -2,12 +2,33 @@ const express = require('express');
 const router = express.Router();
 const { getAuth } = require('@clerk/express');
 const Profile = require('../models/Profile');
+const Job = require('../models/Job');
 
 // JSearch API configuration
 const JSEARCH_API_HOST = 'jsearch.p.rapidapi.com';
 const JSEARCH_API_KEY = process.env.JSEARCH_API_KEY;
 
-// Search for jobs using JSearch API - Returns structured job data with full descriptions, skills, and salary
+// Cron refresh secret (optional, for securing the refresh endpoint)
+const CRON_SECRET = process.env.CRON_SECRET || '';
+
+// Popular job queries to auto-fetch daily
+const POPULAR_QUERIES = [
+    'Software Engineer',
+    'Data Analyst',
+    'Product Manager',
+    'Web Developer',
+    'UI/UX Designer',
+];
+
+// How many hours before cached results are considered stale and trigger a background refresh
+const CACHE_STALE_HOURS = 24;
+
+// Minimum number of cached results to consider a cache hit
+const CACHE_HIT_THRESHOLD = 10;
+
+// ============================================================
+// GET /search — Cache-first job search
+// ============================================================
 router.get('/search', async (req, res) => {
     try {
         const { query, location = 'India', remote, jobType, experience, limit = 20, page = 1 } = req.query;
@@ -19,15 +40,8 @@ router.get('/search', async (req, res) => {
             });
         }
 
-        console.log(`Searching for jobs: "${query}", location: ${location}, experience: ${experience || 'any'}`);
-
-        // Build JSearch query
-        let searchQuery = `${query} in ${location}`;
-        if (remote === 'true') {
-            searchQuery += ' remote';
-        }
-
-        console.log('JSearch query:', searchQuery);
+        const normalizedQuery = query.trim().toLowerCase();
+        console.log(`[Search] query="${query}", normalized="${normalizedQuery}", location=${location}, experience=${experience || 'any'}, page=${page}`);
 
         // Try to get user profile for personalized match scoring
         let userProfile = null;
@@ -42,7 +56,7 @@ router.get('/search', async (req, res) => {
                         location: profile.location || '',
                         role: profile.role || '',
                     };
-                    console.log('User profile loaded for match scoring:', {
+                    console.log('[Search] User profile loaded for match scoring:', {
                         skills: userProfile.skills.length,
                         hasPrefs: !!userProfile.preferences,
                     });
@@ -50,18 +64,97 @@ router.get('/search', async (req, res) => {
             }
         } catch (authErr) {
             // No auth token or invalid — that's fine, use fallback scoring
-            console.log('No auth for match scoring, using data-richness scores');
+            console.log('[Search] No auth for match scoring, using data-richness scores');
         }
 
-        // Call JSearch API
-        const { jobs, rawCount } = await searchJSearchAPI(searchQuery, parseInt(limit), remote, jobType, experience, parseInt(page), userProfile);
+        // ---- STEP 1: Search MongoDB cache ----
+        let cachedJobs = await searchJobsFromDB(normalizedQuery, {
+            remote,
+            jobType,
+            experience,
+            limit: parseInt(limit),
+            page: parseInt(page),
+        });
 
-        console.log(`JSearch returned ${jobs.length} jobs (${rawCount} raw)`);
+        let fromCache = false;
+
+        if (cachedJobs.length >= CACHE_HIT_THRESHOLD) {
+            // Cache HIT
+            console.log(`[Search] Cache HIT: found ${cachedJobs.length} jobs in MongoDB`);
+            fromCache = true;
+
+            // Check if cached data is stale — trigger background refresh if so
+            const oldestFetch = cachedJobs.reduce((oldest, j) => {
+                const fetchedAt = j.lastRefreshed || j.fetchedAt;
+                return fetchedAt < oldest ? fetchedAt : oldest;
+            }, new Date());
+
+            const hoursOld = (Date.now() - oldestFetch.getTime()) / (1000 * 60 * 60);
+            if (hoursOld > CACHE_STALE_HOURS) {
+                console.log(`[Search] Cache is ${Math.round(hoursOld)}h old — triggering background refresh`);
+                // Fire-and-forget background refresh
+                refreshQueryInBackground(normalizedQuery, location, remote, jobType, experience).catch(err => {
+                    console.error('[Search] Background refresh error:', err.message);
+                });
+            }
+        } else {
+            // Cache MISS — fetch from JSearch API
+            console.log(`[Search] Cache MISS (only ${cachedJobs.length} results) — fetching from JSearch API`);
+
+            const searchQuery = buildJSearchQuery(query, location, remote);
+            const { jobs: rawMappedJobs, rawResults } = await searchJSearchAPI(
+                searchQuery, parseInt(limit), remote, jobType, experience, parseInt(page)
+            );
+
+            // Store fetched jobs in MongoDB (fire-and-forget)
+            if (rawMappedJobs.length > 0) {
+                storeJobsInDB(rawMappedJobs, rawResults, normalizedQuery).catch(err => {
+                    console.error('[Search] Error storing jobs in DB:', err.message);
+                });
+            }
+
+            cachedJobs = rawMappedJobs;
+            console.log(`[Search] JSearch returned ${cachedJobs.length} jobs`);
+        }
+
+        // ---- STEP 2: Apply match scoring (computed per-user, not stored) ----
+        const scoredJobs = cachedJobs.map(job => {
+            const rawJobForScoring = {
+                job_required_skills: job.rawRequiredSkills || job.requiredSkills || [],
+                job_title: job.title,
+                job_description: job.rawDescription || job.description || '',
+                job_is_remote: job.rawIsRemote ?? job.remote,
+                job_min_salary: job.rawSalaryMin,
+                job_max_salary: job.rawSalaryMax,
+                job_required_experience: job.rawRequiredExperience,
+            };
+
+            return {
+                id: job.jobId || job.id,
+                title: job.title,
+                company: job.company,
+                location: job.location,
+                remote: job.remote,
+                salary: job.salary,
+                description: job.description,
+                fullDescription: job.fullDescription,
+                matchScore: calculateMatchScore(rawJobForScoring, job.skills || [], job.jobType, job.location, userProfile),
+                postedDate: job.postedDate,
+                jobType: job.jobType,
+                experienceLevel: job.experienceLevel,
+                applyUrl: job.applyUrl,
+                skills: job.skills,
+                requiredSkills: job.requiredSkills,
+                highlights: job.highlights,
+                companyLogo: job.companyLogo,
+                source: job.source,
+            };
+        });
 
         // Remove duplicates by title
         const uniqueJobs = [];
         const seenTitles = new Set();
-        for (const job of jobs) {
+        for (const job of scoredJobs) {
             const key = job.title.toLowerCase();
             if (!seenTitles.has(key)) {
                 seenTitles.add(key);
@@ -71,20 +164,23 @@ router.get('/search', async (req, res) => {
 
         // Limit to requested count
         const limitedJobs = uniqueJobs.slice(0, parseInt(limit));
-        console.log(`Returning ${limitedJobs.length} unique jobs`);
+        console.log(`[Search] Returning ${limitedJobs.length} unique jobs (from ${fromCache ? 'cache' : 'API'})`);
 
-        // hasMore = JSearch returned enough raw results to suggest more pages exist
-        const hasMore = rawCount >= parseInt(limit) * 0.8;
+        // hasMore estimation
+        const hasMore = fromCache
+            ? uniqueJobs.length >= parseInt(limit)
+            : uniqueJobs.length >= parseInt(limit) * 0.8;
 
         res.json({
             success: true,
             data: limitedJobs,
             count: limitedJobs.length,
-            hasMore
+            hasMore,
+            fromCache,
         });
 
     } catch (error) {
-        console.error('Job search error:', error);
+        console.error('[Search] Job search error:', error);
         res.status(500).json({
             success: false,
             error: error.message || 'Failed to search for jobs',
@@ -93,8 +189,239 @@ router.get('/search', async (req, res) => {
     }
 });
 
-// Call JSearch API and return mapped job objects
-async function searchJSearchAPI(query, limit = 20, remote, jobType, experience, page = 1, userProfile = null) {
+// ============================================================
+// POST /refresh — Refresh popular job queries (called by Vercel Cron)
+// ============================================================
+router.get('/refresh', async (req, res) => {
+    try {
+        // Optional: verify cron secret
+        const authHeader = req.headers['authorization'];
+        if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+            return res.status(401).json({ success: false, error: 'Unauthorized' });
+        }
+
+        console.log('[Cron] Starting daily job refresh...');
+        const results = {};
+
+        for (const queryText of POPULAR_QUERIES) {
+            try {
+                const normalizedQuery = queryText.trim().toLowerCase();
+                const searchQuery = buildJSearchQuery(queryText, 'India', undefined);
+
+                console.log(`[Cron] Fetching: "${queryText}"...`);
+
+                // Fetch up to 60 jobs per popular query (6 pages × 10 results)
+                const { jobs: mappedJobs, rawResults } = await searchJSearchAPI(
+                    searchQuery, 60, undefined, undefined, undefined, 1
+                );
+
+                if (mappedJobs.length > 0) {
+                    const stored = await storeJobsInDB(mappedJobs, rawResults, normalizedQuery);
+                    results[queryText] = { fetched: mappedJobs.length, stored };
+                    console.log(`[Cron] "${queryText}": fetched ${mappedJobs.length}, stored/updated ${stored}`);
+                } else {
+                    results[queryText] = { fetched: 0, stored: 0 };
+                    console.log(`[Cron] "${queryText}": no results from JSearch`);
+                }
+
+                // Small delay between queries to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+            } catch (queryError) {
+                console.error(`[Cron] Error fetching "${queryText}":`, queryError.message);
+                results[queryText] = { error: queryError.message };
+            }
+        }
+
+        console.log('[Cron] Daily refresh complete:', results);
+
+        res.json({
+            success: true,
+            message: 'Daily job refresh complete',
+            results,
+            timestamp: new Date().toISOString(),
+        });
+
+    } catch (error) {
+        console.error('[Cron] Refresh error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to refresh jobs',
+        });
+    }
+});
+
+// ============================================================
+// DB HELPERS
+// ============================================================
+
+/**
+ * Search for jobs in MongoDB using text search + query-based lookup.
+ */
+async function searchJobsFromDB(normalizedQuery, filters = {}) {
+    const { remote, jobType, experience, limit = 20, page = 1 } = filters;
+
+    try {
+        // Build a combined query:
+        // 1. Text search on title/company/skills
+        // 2. OR exact match on searchQueries array
+        const mongoQuery = {
+            $or: [
+                { $text: { $search: normalizedQuery } },
+                { searchQueries: normalizedQuery },
+            ],
+        };
+
+        // Apply filters
+        if (remote === 'true') {
+            mongoQuery.remote = true;
+        }
+        if (jobType) {
+            mongoQuery.jobType = jobType;
+        }
+        if (experience) {
+            // Map experience filter to experience levels
+            const expMap = {
+                '0-1 Years': ['Fresher', '0-1 Years'],
+                '2-5 Years': ['1-3 Years', '3-5 Years'],
+                '5+ Years': ['5-10 Years', '10+ Years'],
+            };
+            if (expMap[experience]) {
+                mongoQuery.experienceLevel = { $in: expMap[experience] };
+            }
+        }
+
+        // For page > 1, skip previous results
+        const skip = (page - 1) * limit;
+
+        const jobs = await Job.find(mongoQuery)
+            .sort({ fetchedAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        return jobs;
+
+    } catch (err) {
+        // If text index doesn't exist yet, fall back to regex search
+        if (err.code === 27 || err.codeName === 'IndexNotFound') {
+            console.log('[DB] Text index not ready, falling back to regex search');
+            const regexQuery = {
+                $or: [
+                    { title: { $regex: normalizedQuery, $options: 'i' } },
+                    { company: { $regex: normalizedQuery, $options: 'i' } },
+                    { searchQueries: normalizedQuery },
+                ],
+            };
+
+            return Job.find(regexQuery)
+                .sort({ fetchedAt: -1 })
+                .limit(limit)
+                .lean();
+        }
+        throw err;
+    }
+}
+
+/**
+ * Store mapped jobs into MongoDB (upsert by jobId).
+ * Returns the count of successfully stored/updated jobs.
+ */
+async function storeJobsInDB(mappedJobs, rawResults, normalizedQuery) {
+    let storedCount = 0;
+
+    const bulkOps = mappedJobs.map((job, index) => {
+        const raw = rawResults[index] || {};
+
+        return {
+            updateOne: {
+                filter: { jobId: job.id },
+                update: {
+                    $set: {
+                        jobId: job.id,
+                        title: job.title,
+                        company: job.company,
+                        location: job.location,
+                        remote: job.remote,
+                        salary: job.salary,
+                        description: job.description,
+                        fullDescription: job.fullDescription,
+                        postedDate: job.postedDate,
+                        jobType: job.jobType,
+                        experienceLevel: job.experienceLevel,
+                        applyUrl: job.applyUrl,
+                        skills: job.skills,
+                        requiredSkills: job.requiredSkills,
+                        highlights: job.highlights,
+                        companyLogo: job.companyLogo,
+                        source: job.source,
+                        // Raw data for re-scoring
+                        rawSalaryMin: raw.job_min_salary || null,
+                        rawSalaryMax: raw.job_max_salary || null,
+                        rawSalaryCurrency: raw.job_salary_currency || null,
+                        rawSalaryPeriod: raw.job_salary_period || null,
+                        rawIsRemote: raw.job_is_remote || false,
+                        rawRequiredExperience: raw.job_required_experience || null,
+                        rawRequiredSkills: raw.job_required_skills || [],
+                        rawDescription: raw.job_description || '',
+                        rawEmploymentType: raw.job_employment_type || null,
+                        // Refresh timestamp
+                        lastRefreshed: new Date(),
+                    },
+                    $addToSet: {
+                        searchQueries: normalizedQuery,
+                    },
+                    $setOnInsert: {
+                        fetchedAt: new Date(),
+                    },
+                },
+                upsert: true,
+            },
+        };
+    });
+
+    if (bulkOps.length > 0) {
+        const result = await Job.bulkWrite(bulkOps, { ordered: false });
+        storedCount = (result.upsertedCount || 0) + (result.modifiedCount || 0);
+    }
+
+    return storedCount;
+}
+
+/**
+ * Background refresh: fetch fresh data from JSearch for a query and update cache.
+ */
+async function refreshQueryInBackground(normalizedQuery, location, remote, jobType, experience) {
+    const searchQuery = buildJSearchQuery(normalizedQuery, location || 'India', remote);
+    const { jobs: mappedJobs, rawResults } = await searchJSearchAPI(
+        searchQuery, 60, remote, jobType, experience, 1
+    );
+
+    if (mappedJobs.length > 0) {
+        const stored = await storeJobsInDB(mappedJobs, rawResults, normalizedQuery);
+        console.log(`[Background] Refreshed "${normalizedQuery}": ${mappedJobs.length} fetched, ${stored} stored`);
+    }
+}
+
+/**
+ * Build the JSearch query string from user inputs.
+ */
+function buildJSearchQuery(query, location, remote) {
+    let searchQuery = `${query} in ${location || 'India'}`;
+    if (remote === 'true') {
+        searchQuery += ' remote';
+    }
+    return searchQuery;
+}
+
+// ============================================================
+// JSEARCH API
+// ============================================================
+
+/**
+ * Call JSearch API and return both mapped job objects AND raw results.
+ */
+async function searchJSearchAPI(query, limit = 20, remote, jobType, experience, page = 1) {
     const numPages = Math.ceil(limit / 10);
     const startPage = (page - 1) * numPages + 1;
     const params = new URLSearchParams({
@@ -135,7 +462,7 @@ async function searchJSearchAPI(query, limit = 20, remote, jobType, experience, 
     }
 
     const url = `https://${JSEARCH_API_HOST}/search?${params.toString()}`;
-    console.log('JSearch API URL:', url);
+    console.log('[JSearch] API URL:', url);
 
     const response = await fetch(url, {
         method: 'GET',
@@ -147,22 +474,30 @@ async function searchJSearchAPI(query, limit = 20, remote, jobType, experience, 
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error('JSearch API error:', response.status, errorText);
+        console.error('[JSearch] API error:', response.status, errorText);
         throw new Error(`JSearch API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const results = data.data || [];
-    console.log(`JSearch returned ${results.length} raw results`);
+    console.log(`[JSearch] Returned ${results.length} raw results`);
 
     return {
-        jobs: results.map((job, index) => mapJSearchJob(job, index, userProfile)),
-        rawCount: results.length
+        jobs: results.map((job, index) => mapJSearchJob(job, index, experience)),
+        rawResults: results,
+        rawCount: results.length,
     };
 }
 
-// Map JSearch API response to our job object format
-function mapJSearchJob(job, index, userProfile = null) {
+// ============================================================
+// JOB MAPPING (JSearch → our format)
+// ============================================================
+
+/**
+ * Map JSearch API response to our job object format.
+ * Note: matchScore is NOT set here — it's computed at query time per user.
+ */
+function mapJSearchJob(job, index, requestedExperience = null) {
     // Format salary
     let salary = 'Salary not disclosed';
     if (job.job_min_salary && job.job_max_salary) {
@@ -205,6 +540,16 @@ function mapJSearchJob(job, index, userProfile = null) {
         } else if (titleLower.includes('staff') || titleLower.includes('principal') || titleLower.includes('architect')) {
             experienceLevel = '10+ Years';
         }
+    }
+
+    // Final fallback: use the requested experience filter if it was provided
+    if (!experienceLevel && requestedExperience) {
+        const fallbackMap = {
+            '0-1 Years': '0-1 Years',
+            '2-5 Years': '3-5 Years', // Map to a value that falls in the '2-5 Years' range
+            '5+ Years': '5-10 Years'
+        };
+        experienceLevel = fallbackMap[requestedExperience] || null;
     }
 
     // Extract ALL required skills from JSearch
@@ -278,7 +623,6 @@ function mapJSearchJob(job, index, userProfile = null) {
     );
 
     // Full description for the detail panel — structured markdown
-    // Try raw description first, then fall back to job_highlights
     let fullDescription = '';
     if (job.job_description && job.job_description.trim().length > 30) {
         fullDescription = formatFullDescription(job.job_description, job.job_title || '', job.employer_name || '');
@@ -315,7 +659,7 @@ function mapJSearchJob(job, index, userProfile = null) {
         salary: salary,
         description: description,
         fullDescription: fullDescription,
-        matchScore: calculateMatchScore(job, skills, jobType, location, userProfile),
+        matchScore: -1, // Will be computed at query time per user
         postedDate: postedDate,
         jobType: jobType,
         experienceLevel: experienceLevel,
@@ -327,6 +671,10 @@ function mapJSearchJob(job, index, userProfile = null) {
         source: job.job_publisher || 'JSearch'
     };
 }
+
+// ============================================================
+// UTILITY FUNCTIONS
+// ============================================================
 
 // Format salary numbers with commas (Indian format for INR)
 function formatSalaryNumber(num) {
@@ -505,7 +853,7 @@ function cleanJobDescription(description, title, company) {
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
 
     // Remove leading punctuation or brackets
-    cleaned = cleaned.replace(/^[[\]()\-\*\s:|]+/, '');
+    cleaned = cleaned.replace(/^[[\]()\\-\\*\s:|]+/, '');
 
     // Check if description is just repeating the title/company/location
     const titleWords = title.toLowerCase().split(/\s+/);
@@ -622,7 +970,7 @@ function formatFullDescription(rawDescription, title, company) {
 
     for (const header of headerPatterns) {
         const escapedHeader = header.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Match at start of line, optionally followed by : 
+        // Match at start of line, optionally followed by :
         const regex = new RegExp(`^\\s*${escapedHeader}\\s*:?\\s*$`, 'gim');
         text = text.replace(regex, `\n## ${header}\n`);
     }

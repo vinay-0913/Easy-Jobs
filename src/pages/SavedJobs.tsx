@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useUser, useClerk, useAuth } from "@clerk/clerk-react";
-import { savedJobsApi, appliedJobsApi, SavedJob } from "@/lib/api";
+import { savedJobsApi, appliedJobsApi, profileApi, SavedJob } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { BriefcaseDoodle } from "@/components/doodles";
+import Navbar from "@/components/Navbar";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -13,9 +14,31 @@ const SavedJobs = () => {
     const { getToken } = useAuth();
     const { toast } = useToast();
 
+    // Profile data for header
+    const [profileName, setProfileName] = useState("");
+    const [profileRole, setProfileRole] = useState("");
+
     const [savedJobs, setSavedJobs] = useState<SavedJob[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Load profile data for header
+    useEffect(() => {
+        const loadProfile = async () => {
+            if (!user) return;
+            try {
+                const token = await getToken();
+                const res = await profileApi.get(user.id, token || undefined);
+                if (res.success && res.data) {
+                    setProfileName(res.data.full_name || "");
+                    setProfileRole(res.data.role || "");
+                }
+            } catch (err) {
+                console.error('Error loading profile for header:', err);
+            }
+        };
+        loadProfile();
+    }, [user]);
 
     // Load saved jobs
     useEffect(() => {
@@ -116,78 +139,17 @@ const SavedJobs = () => {
 
     if (!isLoaded) return null;
 
+    const displayName = profileName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User';
+    const displayRole = profileRole || 'Set your role in Profile';
+
     return (
-        <div className="bg-background-light dark:bg-background-dark text-[#111418] dark:text-white h-screen overflow-hidden flex font-sans">
-            {/* Sidebar */}
-            <aside className="w-72 bg-white dark:bg-[#1a2632] border-r border-[#e5e7eb] dark:border-[#2a3642] flex flex-col shrink-0 h-full overflow-y-auto">
-                <div className="p-6 pb-2">
-                    <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
-                        <BriefcaseDoodle className="h-8 w-8 text-primary" />
-                        <span className="text-foreground">
-                            Easy <span className="text-primary">Jobs</span>
-                        </span>
-                    </div>
-                </div>
-                <div className="px-4 py-4">
-                    <Link
-                        to="/profile"
-                        className="flex items-center gap-3 p-3 rounded-lg bg-[#f0f2f4] dark:bg-[#23303e] hover:bg-[#e5e7eb] dark:hover:bg-[#2a3642] transition-colors cursor-pointer"
-                    >
-                        <div
-                            className="bg-center bg-no-repeat bg-cover rounded-full size-10 shrink-0"
-                            style={{ backgroundImage: `url("${user?.imageUrl}")` }}
-                        ></div>
-                        <div className="flex flex-col overflow-hidden">
-                            <h1 className="text-[#111418] dark:text-white text-sm font-bold leading-normal truncate">
-                                {user?.firstName} {user?.lastName}
-                            </h1>
-                            <p className="text-[#4b5563] dark:text-[#8492a6] text-xs font-normal leading-normal truncate">
-                                Senior Frontend Dev
-                            </p>
-                        </div>
-                    </Link>
-                </div>
-
-                <div className="flex flex-col gap-1 px-4">
-                    <Link
-                        to="/dashboard"
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6]"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">dashboard</span>
-                        <p className="text-sm font-medium">Dashboard</p>
-                    </Link>
-                    <Link
-                        to="/my-applications"
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6]"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">work</span>
-                        <p className="text-sm font-medium">My Applications</p>
-                    </Link>
-                    <div className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors bg-primary/10 text-primary">
-                        <span
-                            className="material-symbols-outlined text-[20px]"
-                            style={{ fontVariationSettings: "'FILL' 1" }}
-                        >
-                            bookmark
-                        </span>
-                        <p className="text-sm font-bold">Saved Jobs</p>
-                    </div>
-                </div>
-
-                <div className="mt-auto p-4">
-                    <button
-                        onClick={() => signOut()}
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors hover:bg-red-50 dark:hover:bg-red-500/10 text-[#4b5563] dark:text-[#8492a6] hover:text-red-600 w-full"
-                    >
-                        <span className="material-symbols-outlined text-[20px]">logout</span>
-                        <p className="text-sm font-medium">Sign Out</p>
-                    </button>
-                </div>
-            </aside>
+        <div className="bg-[#f6f7f8] dark:bg-[#101922] text-[#111418] dark:text-white h-screen overflow-hidden flex flex-col font-sans">
+            {/* ========== HEADER ========== */}
+            <Navbar activePage="saved" />
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f8f9fb] dark:bg-background-dark">
-                <div className="flex-1 overflow-y-auto px-8 py-8">
+            <main className="flex-1 overflow-y-auto bg-[#f8f9fb] dark:bg-[#101922]">
+                <div className="px-8 py-8">
                     <div className="max-w-5xl mx-auto">
                         {/* Page Header */}
                         <div className="flex items-start justify-between mb-8">
@@ -371,15 +333,6 @@ const SavedJobs = () => {
                     </div>
                 </div>
 
-                {/* Footer */}
-                <footer className="border-t border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] px-8 py-4 flex items-center justify-between text-xs text-[#4b5563] dark:text-[#8492a6]">
-                    <p>© 2025 Easy Jobs. All rights reserved.</p>
-                    <div className="flex items-center gap-6">
-                        <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-                        <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-                        <a href="#" className="hover:text-primary transition-colors">Help Center</a>
-                    </div>
-                </footer>
             </main>
         </div>
     );

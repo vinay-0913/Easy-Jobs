@@ -6,6 +6,8 @@ import { jobsApi, savedJobsApi, appliedJobsApi, profileApi, Job } from "@/lib/ap
 import { useToast } from "@/hooks/use-toast";
 import { BriefcaseDoodle } from "@/components/doodles";
 import ReactMarkdown from "react-markdown";
+import Navbar from "@/components/Navbar";
+import AuthGateModal from "@/components/AuthGateModal";
 
 
 const Dashboard = () => {
@@ -56,6 +58,9 @@ const Dashboard = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
+  // Auth gate modal for unauthenticated pagination
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
   // Persist search & filter state to sessionStorage
   useEffect(() => {
     sessionStorage.setItem('dashboard_searchQuery', searchQuery);
@@ -82,6 +87,13 @@ const Dashboard = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const JOBS_PER_PAGE = 20;
+  const jobListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (jobListRef.current) {
+      jobListRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   // Load-more state
   const [allJobs, setAllJobs] = useState<Job[]>([]);
@@ -132,7 +144,7 @@ const Dashboard = () => {
       setHasMore(false);
       return [];
     },
-    enabled: !!user && !!submittedQuery.trim(),
+    enabled: !!submittedQuery.trim(),
     staleTime: Infinity,        // never auto-refetch
     gcTime: 1000 * 60 * 30,     // keep in cache for 30 min
   });
@@ -213,7 +225,10 @@ const Dashboard = () => {
   }, [isLoadingMore, hasMore, apiPage, submittedQuery, selectedExperience, selectedJobTypes, toast]);
 
   const toggleSaveJob = async (job: Job) => {
-    if (!user) return;
+    if (!user) {
+      setShowAuthGate(true);
+      return;
+    }
 
     const isSaved = savedJobs.has(job.id);
 
@@ -357,187 +372,26 @@ const Dashboard = () => {
   return (
     <div className="bg-[#f6f7f8] dark:bg-[#101922] text-[#111418] dark:text-white h-screen overflow-hidden flex flex-col font-sans">
       {/* ========== HEADER ========== */}
-      <header className="bg-white dark:bg-[#1a2632] border-b border-[#e5e7eb] dark:border-[#2a3642] sticky top-0 z-30 px-6 py-3 flex items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2 text-primary font-bold text-xl tracking-tight shrink-0">
-            <BriefcaseDoodle className="h-7 w-7 text-primary" />
-            <span className="text-foreground">Easy <span className="text-primary">Jobs</span></span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-1">
-            <div className="px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-bold cursor-pointer">
-              Dashboard
-            </div>
-            <Link
-              to="/my-applications"
-              className="px-3 py-2 rounded-lg hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6] text-sm font-medium cursor-pointer transition-colors"
-            >
-              Applications
-            </Link>
-            <Link
-              to="/saved-jobs"
-              className="px-3 py-2 rounded-lg hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#4b5563] dark:text-[#8492a6] text-sm font-medium cursor-pointer transition-colors"
-            >
-              Saved
-            </Link>
-          </nav>
-        </div>
-        <div className="flex items-center gap-4">
-
-          <Link to="/profile" className="flex items-center gap-3 pl-2 hover:opacity-80 transition-opacity">
-            <div className="flex flex-col items-end overflow-hidden">
-              <h1 className="text-[#111418] dark:text-white text-sm font-bold leading-none truncate">
-                {displayName}
-              </h1>
-              <p className="text-[#4b5563] dark:text-[#8492a6] text-[11px] font-normal mt-1 truncate">
-                {displayRole}
-              </p>
-            </div>
-            <div
-              className="bg-center bg-no-repeat bg-cover rounded-full size-9 shrink-0 border border-[#e5e7eb] dark:border-[#2a3642]"
-              style={{ backgroundImage: `url("${user?.imageUrl}")` }}
-            ></div>
-          </Link>
-        </div>
-      </header>
-
-      {/* ========== SUB-HEADER: Search & Filters ========== */}
-      <div className="bg-white dark:bg-[#1a2632] border-b border-[#e5e7eb] dark:border-[#2a3642] px-6 py-3 shrink-0">
-        <div className="max-w-[1600px] mx-auto flex items-center gap-3">
-          <form onSubmit={handleSearch} className="relative flex-1 max-w-xl text-[#4b5563] focus-within:text-primary">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <span className="material-symbols-outlined text-[20px]">search</span>
-            </div>
-            <input
-              ref={searchInputRef}
-              type="text"
-              className="block w-full rounded-lg border-none bg-[#f0f2f4] dark:bg-[#23303e] py-2 pl-10 pr-3 text-[#111418] dark:text-white placeholder:text-[#4b5563] focus:ring-2 focus:ring-primary sm:text-sm"
-              placeholder="Search job titles, skills..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </form>
-          <div className="relative">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] text-[#111418] dark:text-white text-sm font-medium transition-colors"
-            >
-              <span className="material-symbols-outlined text-[20px]">tune</span>
-              <span>Filters</span>
-            </button>
-            {/* Filter Dropdown */}
-            {showFilters && (
-              <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-[#1a2632] border border-[#e5e7eb] dark:border-[#2a3642] rounded-xl shadow-xl z-40 p-5 space-y-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-[#111418] dark:text-white">Filters</h3>
-                  <button
-                    onClick={() => {
-                      setSelectedJobTypes([]);
-                      setSelectedExperience([]);
-                      setSelectedLocations([]);
-                      setSelectedSalary([]);
-                    }}
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Clear all
-                  </button>
-                </div>
-                <div className="flex flex-col gap-2.5">
-                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Job Type</h4>
-                  {["Full-time", "Internship"].map(type => (
-                    <label key={type} className="flex items-center gap-2.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedJobTypes.includes(type)}
-                        onChange={() => toggleFilter(type, selectedJobTypes, setSelectedJobTypes)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-[#111418] dark:text-gray-200">{type}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-2.5">
-                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Experience</h4>
-                  {["0-1 Years", "2-5 Years", "5+ Years"].map(exp => (
-                    <label key={exp} className="flex items-center gap-2.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedExperience.includes(exp)}
-                        onChange={() => toggleFilter(exp, selectedExperience, setSelectedExperience)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-[#111418] dark:text-gray-200">{exp}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-2.5">
-                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Location</h4>
-                  {["Remote", "Bangalore", "Hyderabad", "Pune", "Delhi"].map(loc => (
-                    <label key={loc} className="flex items-center gap-2.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedLocations.includes(loc)}
-                        onChange={() => toggleFilter(loc, selectedLocations, setSelectedLocations)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-[#111418] dark:text-gray-200">{loc}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-2.5">
-                  <h4 className="text-[10px] font-bold text-[#4b5563] dark:text-[#8492a6] uppercase tracking-wider">Salary (LPA)</h4>
-                  {["0 - 10 LPA", "10 - 25 LPA", "25 - 40 LPA", "40+ LPA"].map(sal => (
-                    <label key={sal} className="flex items-center gap-2.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedSalary.includes(sal)}
-                        onChange={() => toggleFilter(sal, selectedSalary, setSelectedSalary)}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <span className="text-sm text-[#111418] dark:text-gray-200">{sal}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="flex items-center justify-between gap-3 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-transparent hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] transition-colors py-2 pl-4 pr-3 text-[#111418] dark:text-white text-sm font-medium outline-none cursor-pointer"
-            >
-              <span>{sortBy === "relevance" ? "Sort by : Relevance" : sortBy === "date" ? "Sort by : Newest" : "Sort by : Match %"}</span>
-              <span className="material-symbols-outlined text-[18px] text-[#4b5563]">expand_more</span>
-            </button>
-            {showSortDropdown && (
-              <div className="absolute top-full right-0 mt-2 w-[180px] bg-white dark:bg-[#1a2632] border border-[#e5e7eb] dark:border-[#2a3642] rounded-xl shadow-xl z-40 p-2 space-y-1">
-                <button
-                  onClick={() => { setSortBy("relevance"); setShowSortDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === "relevance" ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" : "text-[#111418] dark:text-white hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"}`}
-                >
-                  Sort by : Relevance
-                </button>
-                <button
-                  onClick={() => { setSortBy("date"); setShowSortDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === "date" ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" : "text-[#111418] dark:text-white hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"}`}
-                >
-                  Sort by : Newest
-                </button>
-                <button
-                  onClick={() => { setSortBy("match"); setShowSortDropdown(false); }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === "match" ? "bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" : "text-[#111418] dark:text-white hover:bg-[#f0f2f4] dark:hover:bg-[#23303e]"}`}
-                >
-                  Sort by : Match %
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Close filter dropdown when clicking outside */}
-      {showFilters && (
-        <div className="fixed inset-0 z-30" onClick={() => setShowFilters(false)}></div>
-      )}
+      <Navbar
+        activePage="dashboard"
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={handleSearch}
+        showFilters={showFilters}
+        setShowFilters={setShowFilters}
+        selectedJobTypes={selectedJobTypes}
+        setSelectedJobTypes={setSelectedJobTypes}
+        selectedExperience={selectedExperience}
+        setSelectedExperience={setSelectedExperience}
+        selectedLocations={selectedLocations}
+        setSelectedLocations={setSelectedLocations}
+        selectedSalary={selectedSalary}
+        setSelectedSalary={setSelectedSalary}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        showSortDropdown={showSortDropdown}
+        setShowSortDropdown={setShowSortDropdown}
+      />
 
       {/* ========== MAIN CONTENT SPLIT VIEW ========== */}
       <main className="flex-1 flex overflow-hidden">
@@ -552,7 +406,7 @@ const Dashboard = () => {
             </div>
             <div className="text-center max-w-md">
               <h2 className="text-xl font-bold text-[#111418] dark:text-white mb-2">Find your dream job</h2>
-              <p className="text-sm text-[#4b5563] dark:text-[#8492a6] leading-relaxed">Search thousands of jobs by title, skill, or company name to discover opportunities tailored for you.</p>
+              <p className="text-sm text-[#374151] dark:text-[#8492a6] leading-relaxed">Search thousands of jobs by title, skill, or company name to discover opportunities tailored for you.</p>
             </div>
             <button
               onClick={() => searchInputRef.current?.focus()}
@@ -572,7 +426,7 @@ const Dashboard = () => {
           <>
             {/* ===== LEFT COLUMN: Job List (40%) ===== */}
             <section className="w-[40%] flex flex-col border-r border-[#e5e7eb] dark:border-[#2a3642] bg-[#f8fafc] dark:bg-[#111827]">
-              <div className="flex-1 overflow-y-auto py-2">
+              <div ref={jobListRef} className="flex-1 overflow-y-auto py-2">
                 {paginatedJobs.map((job) => (
                   <div
                     key={job.id}
@@ -615,11 +469,11 @@ const Dashboard = () => {
                             </div>
                           )}
                         </div>
-                        <p className="text-xs text-[#4b5563] dark:text-[#8492a6] mt-0.5">{job.company} • {job.location}</p>
+                        <p className="text-xs text-[#374151] dark:text-[#8492a6] mt-0.5">{job.company} • {job.location}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] text-[#4b5563] dark:text-[#8492a6]">{job.postedDate}</span>
-                          <span className="text-[10px] text-[#4b5563]/50">•</span>
-                          <span className="text-[10px] font-medium text-[#4b5563] dark:text-[#8492a6]">{job.salary}</span>
+                          <span className="text-[10px] text-[#374151] dark:text-[#8492a6]">{job.postedDate}</span>
+                          <span className="text-[10px] text-[#374151]/50">•</span>
+                          <span className="text-[10px] font-medium text-[#374151] dark:text-[#8492a6]">{job.salary}</span>
                         </div>
                       </div>
                     </div>
@@ -630,33 +484,38 @@ const Dashboard = () => {
                 {isLoadingMore && (
                   <div className="flex items-center justify-center py-4 gap-2">
                     <span className="material-symbols-outlined animate-spin text-primary text-xl">refresh</span>
-                    <span className="text-xs text-[#4b5563]">Loading more...</span>
+                    <span className="text-xs text-[#374151]">Loading more...</span>
                   </div>
                 )}
 
                 {/* Pagination at bottom of list */}
-                {totalPages > 1 && (
+                {(totalPages > 1 || hasMore) && (
                   <div className="flex items-center justify-center gap-2 py-4 px-4">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="p-1.5 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#4b5563] hover:bg-[#f0f2f4] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="p-1.5 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#374151] hover:bg-[#f0f2f4] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                     </button>
-                    <span className="text-xs text-[#4b5563] dark:text-[#8492a6]">
-                      Page {currentPage} of {totalPages}
+                    <span className="text-xs text-[#374151] dark:text-[#8492a6]">
+                      Page {currentPage} of {Math.max(totalPages, 1)}
                     </span>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
+                        if (!user) {
+                          setShowAuthGate(true);
+                          return;
+                        }
                         if (currentPage === totalPages && hasMore) {
-                          loadMoreJobs();
+                          await loadMoreJobs();
+                          setCurrentPage(p => p + 1);
                         } else {
                           setCurrentPage(p => Math.min(totalPages, p + 1));
                         }
                       }}
-                      disabled={currentPage === totalPages && !hasMore}
-                      className="p-1.5 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#4b5563] hover:bg-[#f0f2f4] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      disabled={currentPage === totalPages && !hasMore && !!user}
+                      className="p-1.5 rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] bg-white dark:bg-[#1a2632] text-[#374151] hover:bg-[#f0f2f4] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                     </button>
@@ -697,13 +556,13 @@ const Dashboard = () => {
                           </div>
                           <div>
                             <h1 className="text-2xl font-bold text-[#111418] dark:text-white">{selectedJob.title}</h1>
-                            <p className="text-lg text-[#4b5563] dark:text-[#8492a6] font-medium">{selectedJob.company}</p>
+                            <p className="text-lg text-[#374151] dark:text-[#8492a6] font-medium">{selectedJob.company}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => toggleSaveJob(selectedJob)}
-                            className="p-2 text-[#4b5563] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] transition-colors"
+                            className="p-2 text-[#374151] hover:bg-[#f0f2f4] dark:hover:bg-[#23303e] rounded-lg border border-[#e5e7eb] dark:border-[#2a3642] transition-colors"
                           >
                             <span
                               className={`material-symbols-outlined ${savedJobs.has(selectedJob.id) ? 'text-primary' : ''}`}
@@ -718,19 +577,19 @@ const Dashboard = () => {
                       {/* Metadata Grid */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-y border-[#e5e7eb] dark:border-[#2a3642]">
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Salary</span>
+                          <span className="text-[10px] text-[#374151] uppercase font-bold tracking-wider">Salary</span>
                           <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.salary || 'Not specified'}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Location</span>
+                          <span className="text-[10px] text-[#374151] uppercase font-bold tracking-wider">Location</span>
                           <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.location}{selectedJob.remote ? ' (Remote)' : ''}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Experience</span>
+                          <span className="text-[10px] text-[#374151] uppercase font-bold tracking-wider">Experience</span>
                           <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.experienceLevel || 'Not specified'}</span>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] text-[#4b5563] uppercase font-bold tracking-wider">Posted</span>
+                          <span className="text-[10px] text-[#374151] uppercase font-bold tracking-wider">Posted</span>
                           <span className="text-sm font-bold text-[#111418] dark:text-white">{selectedJob.postedDate}</span>
                         </div>
                       </div>
@@ -774,13 +633,13 @@ const Dashboard = () => {
                         <section>
                           <h2 className="text-lg font-bold mb-4 text-[#111418] dark:text-white">About the Role</h2>
                           {(selectedJob.fullDescription || selectedJob.description) ? (
-                            <div className="text-[#4b5563] dark:text-[#8492a6] leading-relaxed prose prose-sm max-w-none prose-headings:text-[#111418] dark:prose-headings:text-white prose-headings:text-base prose-headings:font-bold prose-headings:mt-6 prose-headings:mb-3 prose-li:my-0.5 prose-ul:my-2 prose-p:my-2 prose-strong:text-[#111418] dark:prose-strong:text-white">
+                            <div className="text-[#374151] dark:text-[#8492a6] leading-relaxed prose prose-sm max-w-none prose-headings:text-[#111418] dark:prose-headings:text-white prose-headings:text-base prose-headings:font-bold prose-headings:mt-6 prose-headings:mb-3 prose-li:my-0.5 prose-ul:my-2 prose-p:my-2 prose-strong:text-[#111418] dark:prose-strong:text-white">
                               <ReactMarkdown>{selectedJob.fullDescription || selectedJob.description}</ReactMarkdown>
                             </div>
                           ) : (
                             <div className="flex flex-col items-center gap-4 py-8 px-6 rounded-xl bg-[#f8fafc] dark:bg-[#111827] border border-dashed border-[#e5e7eb] dark:border-[#2a3642]">
-                              <span className="material-symbols-outlined text-3xl text-[#4b5563]/50">description</span>
-                              <p className="text-sm text-[#4b5563] dark:text-[#8492a6] text-center max-w-sm">
+                              <span className="material-symbols-outlined text-3xl text-[#374151]/50">description</span>
+                              <p className="text-sm text-[#374151] dark:text-[#8492a6] text-center max-w-sm">
                                 Full job description is not available from this source. View the complete details on the original posting.
                               </p>
                               {selectedJob.applyUrl && selectedJob.applyUrl !== '#' && (
@@ -811,7 +670,7 @@ const Dashboard = () => {
                                   </h3>
                                   <ul className="space-y-1.5 ml-1">
                                     {selectedJob.highlights.Qualifications.map((item, i) => (
-                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#4b5563] dark:text-[#8492a6]">
+                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#374151] dark:text-[#8492a6]">
                                         <span className="text-primary mt-1.5 text-[6px]">●</span>
                                         <span>{item}</span>
                                       </li>
@@ -827,7 +686,7 @@ const Dashboard = () => {
                                   </h3>
                                   <ul className="space-y-1.5 ml-1">
                                     {selectedJob.highlights.Responsibilities.map((item, i) => (
-                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#4b5563] dark:text-[#8492a6]">
+                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#374151] dark:text-[#8492a6]">
                                         <span className="text-primary mt-1.5 text-[6px]">●</span>
                                         <span>{item}</span>
                                       </li>
@@ -843,7 +702,7 @@ const Dashboard = () => {
                                   </h3>
                                   <ul className="space-y-1.5 ml-1">
                                     {selectedJob.highlights.Benefits.map((item, i) => (
-                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#4b5563] dark:text-[#8492a6]">
+                                      <li key={i} className="flex items-start gap-2.5 text-sm text-[#374151] dark:text-[#8492a6]">
                                         <span className="text-primary mt-1.5 text-[6px]">●</span>
                                         <span>{item}</span>
                                       </li>
@@ -893,7 +752,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-[#4b5563] dark:text-[#8492a6]">
+                <div className="flex-1 flex items-center justify-center text-[#374151] dark:text-[#8492a6]">
                   <p className="text-sm">Select a job to view details</p>
                 </div>
               )}
@@ -901,6 +760,9 @@ const Dashboard = () => {
           </>
         )}
       </main>
+
+      {/* Auth gate modal for unauthenticated users */}
+      <AuthGateModal open={showAuthGate} onClose={() => setShowAuthGate(false)} />
     </div>
   );
 };

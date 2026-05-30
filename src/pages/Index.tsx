@@ -4,20 +4,18 @@ import {
   HowItWorksSection,
   FeaturesSection,
   TestimonialsSection,
-  CTASection,
   Footer,
 } from "@/components/landing";
 
 const Index = () => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#f8f9fa] font-hanken antialiased pt-20">
       <Header />
       <main>
         <HeroSection />
         <HowItWorksSection />
         <FeaturesSection />
         <TestimonialsSection />
-        <CTASection />
       </main>
       <Footer />
     </div>

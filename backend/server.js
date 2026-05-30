@@ -23,19 +23,40 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI)
-    .then(async () => {
-        console.log('Connected to MongoDB Atlas');
-        // Drop stale index from legacy schema if it exists
-        try {
-            await mongoose.connection.collection('profiles').dropIndex('user_1');
-            console.log('Dropped stale user_1 index');
-        } catch (e) {
-            // Index doesn't exist — that's fine
-        }
-    })
-    .catch(err => console.error('MongoDB connection error:', err));
+// Database Connection — cached for Vercel serverless warm starts
+let cached = global.__mongooseConnection;
+if (!cached) {
+    cached = global.__mongooseConnection = { conn: null, promise: null };
+}
+
+async function connectDB() {
+    if (cached.conn) return cached.conn;
+
+    if (!cached.promise) {
+        cached.promise = mongoose.connect(process.env.MONGODB_URI, {
+            maxPoolSize: 10,        // max concurrent sockets to MongoDB
+            minPoolSize: 2,         // keep 2 sockets warm at all times
+            serverSelectionTimeoutMS: 5000,  // fail fast if cluster unreachable
+            socketTimeoutMS: 45000,          // close idle sockets after 45s
+            heartbeatFrequencyMS: 10000,     // keep-alive pings every 10s
+        }).then(async (m) => {
+            console.log('Connected to MongoDB Atlas (pooled)');
+            // Drop stale index from legacy schema if it exists
+            try {
+                await m.connection.collection('profiles').dropIndex('user_1');
+                console.log('Dropped stale user_1 index');
+            } catch (e) {
+                // Index doesn't exist — that's fine
+            }
+            return m;
+        });
+    }
+
+    cached.conn = await cached.promise;
+    return cached.conn;
+}
+
+connectDB().catch(err => console.error('MongoDB connection error:', err));
 
 // Clerk authentication middleware - adds req.auth to all subsequent requests
 // This is permissive: unauthenticated requests still go through, but req.auth is populated when a token is present

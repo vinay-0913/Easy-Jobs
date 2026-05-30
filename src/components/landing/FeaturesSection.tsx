@@ -1,76 +1,84 @@
-import {
-  Search,
-  BarChart3,
-  Bookmark,
-} from "lucide-react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
 const features = [
   {
-    icon: Search,
-    title: "Real Job Listings",
+    icon: "list_alt",
+    title: "Extensive Listings",
     description:
-      "We search across the entire web to bring you real, verified job postings from top companies.",
+      "Access millions of up-to-date job postings from top global companies.",
   },
   {
-    icon: BarChart3,
+    icon: "check_circle",
     title: "Match Scoring",
     description:
-      "See exactly how well each job matches your profile with our intelligent scoring system.",
+      "Instantly see how well your skills align with job requirements before you apply.",
   },
   {
-    icon: Bookmark,
+    icon: "bookmark",
     title: "Save & Track",
     description:
-      "Bookmark interesting positions and track your applications all in one place.",
+      "Organize your job search with intuitive saving and status tracking features.",
   },
 ];
 
 const FeaturesSection = () => {
-  return (
-    <section id="features" className="py-20 md:py-28">
-      <div className="container">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto mb-16 max-w-2xl text-center"
-        >
-          <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
-            Everything You Need to Land Your Dream Job
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Powerful features designed to simplify your job search
-          </p>
-        </motion.div>
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
-        <div className="grid gap-8 md:grid-cols-3">
-          {features.map((feature, index) => (
-            <motion.div
-              key={feature.title}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.5, delay: index * 0.15, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -6, boxShadow: "0 12px 30px rgba(0,0,0,0.08)" }}
-              className="group rounded-2xl border border-border/50 bg-card p-8 transition-colors hover:border-primary/30"
-            >
-              <motion.div
-                whileHover={{ scale: 1.1, rotate: -5 }}
-                transition={{ type: "spring", stiffness: 300 }}
-                className="mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
-              >
-                <feature.icon className="h-8 w-8" />
-              </motion.div>
-              <h3 className="mb-3 text-xl font-semibold text-foreground">
-                {feature.title}
-              </h3>
-              <p className="text-muted-foreground">
-                {feature.description}
-              </p>
-            </motion.div>
-          ))}
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <section
+      ref={sectionRef}
+      id="features"
+      className={`bg-gray-50 py-section-gap px-4 md:px-6 fade-up ${isVisible ? "visible" : ""}`}
+    >
+      <div className="max-w-[1280px] mx-auto">
+        <div className="flex flex-col items-center gap-section-gap">
+          <div className="max-w-3xl w-full">
+            <h2 className="font-hanken text-[32px] leading-[40px] font-bold text-gray-900 mb-4 text-center tracking-tight">
+              Everything You Need to Succeed
+            </h2>
+            <p className="font-hanken text-lg text-gray-500 mb-8 text-center leading-relaxed">
+              We provide the tools and insights necessary to navigate your
+              career path with confidence.
+            </p>
+
+            {/* Feature List */}
+            <div className="space-y-4">
+              {features.map((feature) => (
+                <div key={feature.title} className="flex gap-4">
+                  <span className="material-symbols-outlined text-[#137fec] text-2xl mt-1 flex-shrink-0">
+                    {feature.icon}
+                  </span>
+                  <div>
+                    <h4 className="font-hanken text-sm font-semibold text-gray-900 mb-1">
+                      {feature.title}
+                    </h4>
+                    <p className="font-hanken text-base text-gray-500 leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

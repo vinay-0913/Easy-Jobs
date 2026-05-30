@@ -1,114 +1,96 @@
-import { Star } from "lucide-react";
-import { HandshakeDoodle, PersonWorkingDoodle } from "@/components/doodles";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
 const testimonials = [
   {
-    name: "Priya Sharma",
+    name: "Sarah J.",
     role: "Software Engineer",
     content:
-      "Easy Jobs saved me hours of searching across different portals. The match score is incredibly accurate!",
-    rating: 5,
+      "Easy Jobs streamlined my search. The match scoring helped me focus on roles where I truly stood out, landing me a Senior Developer position in weeks.",
+    avatar: "/avatar-sarah.png",
   },
   {
-    name: "Rahul Mehta",
+    name: "Neeraj S.",
     role: "Product Manager",
     content:
-      "I love the job tracking feature. It keeps me organized and I never miss a deadline or follow-up.",
-    rating: 5,
+      "The interface is so clean and distraction-free. I loved being able to set specific preferences and only get notifications for relevant opportunities.",
+    avatar: "/avatar-neeraj.png",
   },
   {
-    name: "Ananya Gupta",
-    role: "UX Designer",
+    name: "Priya Sharma",
+    role: "Data Analyst",
     content:
-      "Finally one place for all job listings. The aggregation from Naukri, Indeed, and career pages is a game changer.",
-    rating: 5,
+      "As someone transitioning careers, the track jobs feature kept me organized. It's the most helpful job board I've used.",
+    avatar: "/avatar-priya.png",
   },
 ];
 
 const TestimonialsSection = () => {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section
+      ref={sectionRef}
       id="testimonials"
-      className="relative overflow-hidden bg-secondary/30 py-20 md:py-28"
+      className={`py-section-gap px-4 md:px-6 max-w-[1280px] mx-auto fade-up ${isVisible ? "visible" : ""}`}
     >
-      {/* Doodle decorations */}
-      <motion.div
-        initial={{ opacity: 0, x: -30 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, delay: 0.5 }}
-      >
-        <HandshakeDoodle className="absolute -left-4 top-20 h-32 w-32 rotate-12 text-primary/10" />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0, x: 30 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, delay: 0.7 }}
-      >
-        <PersonWorkingDoodle className="absolute -right-8 bottom-20 h-40 w-40 -rotate-6 text-accent/10" />
-      </motion.div>
+      <h2 className="font-hanken text-[32px] leading-[40px] font-bold text-center text-gray-900 mb-section-gap tracking-tight">
+        Success Stories
+      </h2>
 
-      <div className="container relative">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto mb-16 max-w-2xl text-center"
-        >
-          <h2 className="mb-4 text-3xl font-bold text-foreground md:text-4xl">
-            Loved by Job Seekers
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            Join thousands who've found their perfect career match
-          </p>
-        </motion.div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {testimonials.map((testimonial, index) => (
+          <div
+            key={testimonial.name}
+            className={`bg-white p-8 rounded-xl border border-gray-200 shadow-sm relative pt-12 mt-8 ${
+              index === 2
+                ? "lg:mt-8 md:mt-16 md:col-span-2 lg:col-span-1"
+                : ""
+            }`}
+          >
+            {/* Avatar */}
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2">
+              <img
+                alt={testimonial.name}
+                className="w-16 h-16 rounded-full border-4 border-white shadow-md object-cover"
+                src={testimonial.avatar}
+              />
+            </div>
 
-        <div className="grid gap-8 md:grid-cols-3">
-          {testimonials.map((testimonial, index) => (
-            <motion.div
-              key={testimonial.name}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.5, delay: index * 0.15, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -5, boxShadow: "0 10px 25px rgba(0,0,0,0.06)" }}
-              className="rounded-2xl bg-card p-6 shadow-sm"
-            >
-              {/* Stars */}
-              <div className="mb-4 flex gap-1">
-                {Array.from({ length: testimonial.rating }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className="h-5 w-5 fill-yellow-400 text-yellow-400"
-                  />
-                ))}
-              </div>
+            {/* Quote */}
+            <p className="font-hanken text-base text-gray-500 mb-4 italic leading-relaxed">
+              "{testimonial.content}"
+            </p>
 
-              {/* Quote */}
-              <p className="mb-6 text-muted-foreground">
-                "{testimonial.content}"
-              </p>
-
-              {/* Author */}
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm">
-                  {testimonial.name.split(" ").map(n => n[0]).join("")}
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">
-                    {testimonial.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {testimonial.role}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+            {/* Author */}
+            <div className="text-center">
+              <h4 className="font-hanken text-sm font-semibold text-gray-900">
+                {testimonial.name}
+              </h4>
+              <span className="font-hanken text-sm text-gray-400">
+                {testimonial.role}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
